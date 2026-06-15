@@ -1,0 +1,16 @@
+{
+  "experiment_name": "mistral7b_retrieval_3shot_no_rag_no_think_sf",
+  "input": "data/processed/sns1064/dev.jsonl",
+  "output": "experiments/runs/16_mistral7b_retrieval_3shot_no_rag_no_think_sf_dev/predictions.jsonl",
+  "model": "mistralai/Mistral-7B-Instruct-v0.3",
+  "retrieval_index": "models/retrieval/sns1064_train_multilingual_minilm",
+  "retrieval_top_k": 0,
+  "few_shot_k": 3,
+  "few_shot_mode": "retrieval",
+  "think": false,
+  "self_feedback": true,
+  "max_new_tokens": 256,
+  "feedback_max_new_tokens": 256,
+  "temperature": 0.0,
+  "seed": 42
+}

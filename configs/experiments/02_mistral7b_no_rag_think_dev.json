@@ -1,0 +1,11 @@
+{
+  "experiment_name": "mistral7b_no_rag_think",
+  "input": "data/processed/sns1064/dev.jsonl",
+  "output": "experiments/runs/02_mistral7b_no_rag_think_dev/predictions.jsonl",
+  "model": "mistralai/Mistral-7B-Instruct-v0.3",
+  "think": true,
+  "few_shot_k": 0,
+  "retrieval_top_k": 0,
+  "max_new_tokens": 512,
+  "temperature": 0.0
+}

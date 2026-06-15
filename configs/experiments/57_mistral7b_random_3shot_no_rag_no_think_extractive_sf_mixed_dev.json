@@ -1,0 +1,16 @@
+{
+  "experiment_name": "mistral7b_random_3shot_no_rag_no_think_extractive_sf_mixed",
+  "input": "data/processed/sns1064_casimedicos/dev.jsonl",
+  "output": "experiments/runs/57_mistral7b_random_3shot_no_rag_no_think_extractive_sf_mixed_dev/predictions.jsonl",
+  "model": "mistralai/Mistral-7B-Instruct-v0.3",
+  "prompt_style": "extractive",
+  "think": false,
+  "self_feedback": true,
+  "max_new_tokens": 256,
+  "feedback_max_new_tokens": 256,
+  "temperature": 0.0,
+  "retrieval_top_k": 0,
+  "few_shot_file": "data/processed/sns1064_casimedicos/train.jsonl",
+  "few_shot_k": 3,
+  "few_shot_mode": "random"
+}

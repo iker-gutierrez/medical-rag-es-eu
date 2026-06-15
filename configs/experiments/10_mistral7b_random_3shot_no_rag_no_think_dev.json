@@ -1,0 +1,13 @@
+{
+  "experiment_name": "mistral7b_random_3shot_no_rag_no_think",
+  "input": "data/processed/sns1064/dev.jsonl",
+  "output": "experiments/runs/10_mistral7b_random_3shot_no_rag_no_think_dev/predictions.jsonl",
+  "model": "mistralai/Mistral-7B-Instruct-v0.3",
+  "few_shot_file": "data/processed/sns1064/train.jsonl",
+  "few_shot_k": 3,
+  "few_shot_mode": "random",
+  "think": false,
+  "max_new_tokens": 256,
+  "temperature": 0.0,
+  "seed": 42
+}

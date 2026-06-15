@@ -1,0 +1,35 @@
+.venv/
+.vendor/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# Large or generated research artifacts
+data/raw/*
+data/interim/*
+data/processed/*
+data/external/*
+experiments/runs/*
+experiments/slurm_logs/*
+models/*
+reports/figures/*
+reports/metrics/*
+
+# Keep directory placeholders
+!data/raw/.gitkeep
+!data/interim/.gitkeep
+!data/processed/.gitkeep
+!data/external/.gitkeep
+!experiments/runs/.gitkeep
+!experiments/slurm_logs/.gitkeep
+!models/.gitkeep
+!reports/figures/.gitkeep
+!reports/metrics/.gitkeep
+
+# Local machine state
+.env
+.cache/
+wandb/

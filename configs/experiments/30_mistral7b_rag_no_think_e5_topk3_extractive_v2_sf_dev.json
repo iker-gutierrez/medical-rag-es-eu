@@ -1,0 +1,14 @@
+{
+  "experiment_name": "mistral7b_rag_no_think_e5_topk3_extractive_v2_sf",
+  "input": "data/processed/sns1064/dev.jsonl",
+  "output": "experiments/runs/30_mistral7b_rag_no_think_e5_topk3_extractive_v2_sf_dev/predictions.jsonl",
+  "model": "mistralai/Mistral-7B-Instruct-v0.3",
+  "prompt_style": "extractive",
+  "retrieval_index": "models/retrieval/sns1064_train_multilingual_e5_large",
+  "retrieval_top_k": 3,
+  "think": false,
+  "self_feedback": true,
+  "max_new_tokens": 512,
+  "feedback_max_new_tokens": 512,
+  "temperature": 0.0
+}

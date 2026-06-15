@@ -1,0 +1,20 @@
+{
+  "experiment_name": "mistral7b_rag_random_3shot_no_think_e5_rerank5_extractive_sf_mixed",
+  "input": "data/processed/sns1064_casimedicos/dev.jsonl",
+  "output": "experiments/runs/58_mistral7b_rag_random_3shot_no_think_e5_rerank5_extractive_sf_mixed_dev/predictions.jsonl",
+  "model": "mistralai/Mistral-7B-Instruct-v0.3",
+  "prompt_style": "extractive",
+  "think": false,
+  "self_feedback": true,
+  "max_new_tokens": 512,
+  "feedback_max_new_tokens": 512,
+  "temperature": 0.0,
+  "retrieval_index": "models/retrieval/sns1064_casimedicos_train_multilingual_e5_large",
+  "retrieval_top_k": 15,
+  "reranker_model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+  "reranker_top_k": 5,
+  "reranker_device": "cpu",
+  "few_shot_file": "data/processed/sns1064_casimedicos/train.jsonl",
+  "few_shot_k": 3,
+  "few_shot_mode": "random"
+}

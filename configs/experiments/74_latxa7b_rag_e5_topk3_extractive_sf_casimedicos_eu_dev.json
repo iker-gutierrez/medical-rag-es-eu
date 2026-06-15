@@ -1,0 +1,16 @@
+{
+  "model": "HiTZ/Latxa-7B-v1",
+  "language": "eu",
+  "prompt_style": "extractive",
+  "self_feedback": true,
+  "max_new_tokens": 256,
+  "feedback_max_new_tokens": 256,
+  "temperature": 0.0,
+  "trust_remote_code": true,
+  "input": "data/processed/casimedicos_eu/dev.jsonl",
+  "experiment_name": "latxa7b_rag_e5_topk3_extractive_sf_casimedicos_eu",
+  "output": "experiments/runs/74_latxa7b_rag_e5_topk3_extractive_sf_casimedicos_eu_dev/predictions.jsonl",
+  "retrieval_index": "models/retrieval/casimedicos_eu_train_multilingual_e5_large",
+  "retrieval_top_k": 3,
+  "few_shot_k": 0
+}

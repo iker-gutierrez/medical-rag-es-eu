@@ -1,0 +1,18 @@
+{
+  "experiment_name": "mistral7b_rag_no_think_e5_rerank5_extractive_promptfix_sf_dev12",
+  "input": "data/processed/sns1064/dev.jsonl",
+  "output": "experiments/runs/35_mistral7b_rag_no_think_e5_rerank5_extractive_promptfix_sf_dev12/predictions.jsonl",
+  "model": "mistralai/Mistral-7B-Instruct-v0.3",
+  "prompt_style": "extractive",
+  "limit": 12,
+  "retrieval_index": "models/retrieval/sns1064_train_multilingual_e5_large",
+  "retrieval_top_k": 15,
+  "reranker_model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+  "reranker_top_k": 5,
+  "reranker_device": "cpu",
+  "think": false,
+  "self_feedback": true,
+  "max_new_tokens": 160,
+  "feedback_max_new_tokens": 160,
+  "temperature": 0.0
+}

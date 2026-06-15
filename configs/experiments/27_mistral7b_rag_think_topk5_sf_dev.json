@@ -1,0 +1,13 @@
+{
+  "experiment_name": "mistral7b_rag_think_topk5_sf",
+  "input": "data/processed/sns1064/dev.jsonl",
+  "output": "experiments/runs/27_mistral7b_rag_think_topk5_sf_dev/predictions.jsonl",
+  "model": "mistralai/Mistral-7B-Instruct-v0.3",
+  "retrieval_index": "models/retrieval/sns1064_train_multilingual_minilm",
+  "retrieval_top_k": 5,
+  "think": true,
+  "self_feedback": true,
+  "max_new_tokens": 512,
+  "feedback_max_new_tokens": 512,
+  "temperature": 0.0
+}

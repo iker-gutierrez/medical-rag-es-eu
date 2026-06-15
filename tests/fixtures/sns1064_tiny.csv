@@ -1,0 +1,11 @@
+Topic,Question,Short answer,evidence,considerations
+Cardiologia,Que es la hipertension?,Presion arterial elevada,Se define por cifras persistentemente elevadas,Confirmar con mediciones repetidas
+Cardiologia,Que indica dolor toracico opresivo?,Posible isquemia miocardica,El dolor opresivo puede sugerir angina,Valorar factores de riesgo
+Cardiologia,Que es una arritmia?,Alteracion del ritmo cardiaco,Puede detectarse en el ECG,Interpretar segun sintomas
+Cardiologia,Para que sirve el ECG?,Evalua actividad electrica cardiaca,Registra ritmo y conduccion,Puede requerir pruebas complementarias
+Endocrino,Que es la diabetes mellitus?,Hiperglucemia cronica,Se relaciona con deficit o resistencia a insulina,Confirmar con criterios diagnosticos
+Endocrino,Que mide la HbA1c?,Control glucemico promedio,Refleja glucemia de los ultimos meses,Puede alterarse en algunas anemias
+Endocrino,Que es hipoglucemia?,Glucosa baja en sangre,Puede producir sudoracion temblor y confusion,Requiere actuacion rapida si es sintomatica
+Endocrino,Que hormona produce la tiroides?,Hormonas tiroideas,La glandula produce T4 y T3,Relacionar con TSH
+Neumologia,Que es el asma?,Enfermedad inflamatoria de vias aereas,Cursa con obstruccion variable,Confirmar con historia clinica y espirometria
+Neumologia,Que indica disnea?,Sensacion de falta de aire,Tiene causas respiratorias cardiacas y metabolicas,Evaluar gravedad y contexto clinico

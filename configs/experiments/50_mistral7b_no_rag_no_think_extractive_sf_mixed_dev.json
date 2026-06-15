@@ -1,0 +1,14 @@
+{
+  "experiment_name": "mistral7b_no_rag_no_think_extractive_sf_mixed",
+  "input": "data/processed/sns1064_casimedicos/dev.jsonl",
+  "output": "experiments/runs/50_mistral7b_no_rag_no_think_extractive_sf_mixed_dev/predictions.jsonl",
+  "model": "mistralai/Mistral-7B-Instruct-v0.3",
+  "prompt_style": "extractive",
+  "think": false,
+  "self_feedback": true,
+  "max_new_tokens": 256,
+  "feedback_max_new_tokens": 256,
+  "temperature": 0.0,
+  "retrieval_top_k": 0,
+  "few_shot_k": 0
+}
