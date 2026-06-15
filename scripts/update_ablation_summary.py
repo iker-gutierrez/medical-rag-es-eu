@@ -59,7 +59,7 @@ MIXED_EXPS = {
 }
 
 CASI_LABELS = {
-    0: "Baseline — no retrieval",
+    0: "Baseline LLM only",
     1: "e5 top 1 (CasiMedicos index)",
     2: "e5 top 3 (CasiMedicos index)",
     3: "e5 top 5 (CasiMedicos index)",
@@ -73,7 +73,7 @@ CASI_LABELS = {
 }
 
 MIXED_LABELS = {
-    0: "Baseline — no retrieval",
+    0: "Baseline LLM only",
     1: "e5 top 1 (mixed index)",
     2: "e5 top 3 (mixed index)",
     3: "e5 top 5 (mixed index)",
@@ -99,6 +99,13 @@ def sign(v: float) -> str:
     return f"+{v:.2f}" if v >= 0 else f"{v:.2f}"
 
 
+def parenthetical_label(label: str) -> str:
+    if label.endswith(")") and " (" in label:
+        base, detail = label.rsplit(" (", 1)
+        return f"{base}, {detail[:-1]}"
+    return label
+
+
 def best_rag_exp(exps: dict) -> int:
     """Return the ablation index (1-6) with highest overall BERTScore (noSF)."""
     best_idx, best_val = -1, -1.0
@@ -119,7 +126,7 @@ def build_section(title: str, dev_desc: str, exps: dict, labels: dict) -> str:
         run = exps[idx]
         path = METRICS_DIR / f"{run}.json"
         if not path.exists():
-            rows.append(f"| {idx} | {labels[idx]} | — | — |")
+            rows.append(f"| {idx} | {labels[idx]} | missing | missing |")
             continue
         d = load(run)
         bert = d["before_feedback"]["overall"]["bertscore_f1"]
@@ -127,7 +134,7 @@ def build_section(title: str, dev_desc: str, exps: dict, labels: dict) -> str:
         rows.append(f"| {idx} | {labels[idx]} | {fmt(bert)} | {sign(delta)} |")
 
     best_idx = best_rag_exp(exps)
-    best_label = f"exp {best_idx} ({labels[best_idx]})" if best_idx >= 0 else "exp 6 (assumed)"
+    best_label = f"exp {best_idx} ({parenthetical_label(labels[best_idx])})" if best_idx >= 0 else "exp 6 (assumed)"
 
     grouped_rows = [
         rows[0],
@@ -155,7 +162,7 @@ def build_section(title: str, dev_desc: str, exps: dict, labels: dict) -> str:
 
 def build_full_section(title: str, dev_desc: str, exps: dict, labels: dict) -> str:
     best_idx = best_rag_exp(exps)
-    best_note = (f"Best RAG config (exps 1–6): **exp {best_idx}** — {labels[best_idx]}."
+    best_note = (f"Best RAG config (exps 1–6): **exp {best_idx}** ({parenthetical_label(labels[best_idx])})."
                  if best_idx >= 0 else "Best RAG config pending.")
 
     status_rows = []

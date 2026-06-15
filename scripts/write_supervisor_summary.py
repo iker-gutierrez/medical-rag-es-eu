@@ -470,7 +470,7 @@ def write_markdown(status_rows: list[dict[str, Any]], result_rows: list[dict[str
             "",
             "| # | Experiment | BERT | SF Δ |",
             "|---:|---|---:|---:|",
-            "| 0 | Baseline — no retrieval | 63.41 | +0.05 |",
+            "| 0 | Baseline LLM only | 63.41 | +0.05 |",
             "| | *Direct e5 retrieval (no reranker)* | | |",
             "| 1 | e5 top 1 | 68.48 | +0.79 |",
             "| 2 | e5 top 3 | 72.32 | +0.45 |",

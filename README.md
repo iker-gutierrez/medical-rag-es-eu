@@ -20,6 +20,13 @@ This repository is structured around the first experiments from `plan.pdf`:
 - `reports/`: metrics, tables, and figures.
 - `docs/`: notes extracted from the thesis plan.
 
+## Supervisor meeting materials
+
+- [Supervisor meeting notes](docs/supervisor_meeting_notes.md)
+- [Dev ablation results](reports/metrics/dev_ablation_results.md)
+- [Agentic Reasoner dev results](reports/metrics/agentic_dev_results.md)
+- [Reading list](docs/reading_list.md)
+
 ## Quick start
 
 Use the current environment, or install the package in editable mode:

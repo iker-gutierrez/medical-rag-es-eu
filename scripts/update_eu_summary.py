@@ -72,7 +72,7 @@ MIXED_EU_EXPS = {
 }
 
 SNS_EU_LABELS = {
-    0: "Baseline — no retrieval",
+    0: "Baseline LLM only",
     1: "e5 top 1 (SNS EU index)",
     2: "e5 top 3 (SNS EU index)",
     3: "e5 top 5 (SNS EU index)",
@@ -86,7 +86,7 @@ SNS_EU_LABELS = {
 }
 
 CASI_EU_LABELS = {
-    0: "Baseline — no retrieval",
+    0: "Baseline LLM only",
     1: "e5 top 1 (CasiMedicos EU index)",
     2: "e5 top 3 (CasiMedicos EU index)",
     3: "e5 top 5 (CasiMedicos EU index)",
@@ -100,7 +100,7 @@ CASI_EU_LABELS = {
 }
 
 MIXED_EU_LABELS = {
-    0: "Baseline — no retrieval",
+    0: "Baseline LLM only",
     1: "e5 top 1 (mixed EU index)",
     2: "e5 top 3 (mixed EU index)",
     3: "e5 top 5 (mixed EU index)",
@@ -120,6 +120,13 @@ def fmt(v: float) -> str:
 
 def sign(v: float) -> str:
     return f"+{v:.2f}" if v >= 0 else f"{v:.2f}"
+
+
+def parenthetical_label(label: str) -> str:
+    if label.endswith(")") and " (" in label:
+        base, detail = label.rsplit(" (", 1)
+        return f"{base}, {detail[:-1]}"
+    return label
 
 
 def best_rag_exp(exps: dict) -> int:
@@ -191,7 +198,7 @@ def build_metric_table(result_rows: list[dict]) -> str:
 def build_full_section(title: str, dev_desc: str, exps: dict, labels: dict) -> str:
     best_idx = best_rag_exp(exps)
     best_note = (
-        f"Best RAG config (exps 1–6): **exp {best_idx}** — {labels[best_idx]}."
+        f"Best RAG config (exps 1–6): **exp {best_idx}** ({parenthetical_label(labels[best_idx])})."
         if best_idx >= 0 else "Best RAG config pending."
     )
 
@@ -226,7 +233,7 @@ def build_summary_section(title: str, dev_desc: str, exps: dict, labels: dict) -
     for idx in range(11):
         path = METRICS_DIR / f"{exps[idx]}.json"
         if not path.exists():
-            rows.append(f"| {idx} | {labels[idx]} | — | — |")
+            rows.append(f"| {idx} | {labels[idx]} | missing | missing |")
             continue
         d = json.loads(path.read_text())["summary"]
         bert = d["before_feedback"]["overall"]["bertscore_f1"]
@@ -234,7 +241,7 @@ def build_summary_section(title: str, dev_desc: str, exps: dict, labels: dict) -
         rows.append(f"| {idx} | {labels[idx]} | {fmt(bert)} | {sign(delta)} |")
 
     best_idx = best_rag_exp(exps)
-    best_label = f"exp {best_idx} ({labels[best_idx]})" if best_idx >= 0 else "exp 6 (assumed)"
+    best_label = f"exp {best_idx} ({parenthetical_label(labels[best_idx])})" if best_idx >= 0 else "exp 6 (assumed)"
 
     grouped = [
         rows[0],
@@ -303,7 +310,7 @@ def main() -> None:
     )
 
     # insert full HTML tables before the Takeaways section,
-    # and compact markdown summaries inside Takeaways — same pattern as Spanish
+    # and compact markdown summaries inside Takeaways, using the same pattern as Spanish
     takeaways_marker = "\n## Takeaways\n"
     if takeaways_marker not in content:
         raise RuntimeError("Could not find '## Takeaways' section in dev_ablation_results.md")
