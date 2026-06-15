@@ -147,7 +147,11 @@ def best_model_exp(exps: dict) -> int:
         path = METRICS_DIR / f"{run}.json"
         if not path.exists():
             continue
-        val = json.loads(path.read_text())["summary"]["before_feedback"]["overall"]["bertscore_f1"]
+        summary = json.loads(path.read_text())["summary"]
+        val = summary["before_feedback"]["overall"]["bertscore_f1"]
+        delta = summary.get("self_feedback_delta", {}).get("overall", {}).get("bertscore_f1")
+        if delta is not None:
+            val = max(val, val + delta)
         if val > best_val:
             best_val, best_idx = val, idx
     return best_idx
@@ -159,7 +163,22 @@ def summary_row(idx: int, label: str, bert: str, delta: str, best_idx: int) -> s
     return f"| {idx} | {label} | {bert} | {delta} |"
 
 
-def build_metric_table(result_rows: list[dict], best_idx: int | None = None) -> str:
+def best_feedback_key(rows: list[dict]) -> tuple[str, str] | None:
+    best_key, best_score = None, -1.0
+    for row in rows:
+        condition = row.get("self_feedback")
+        if condition not in {"noSF", "SF"}:
+            continue
+        score = row.get("overall_bertscore_f1")
+        if score is None:
+            continue
+        score = float(score)
+        if score > best_score:
+            best_key, best_score = (str(row["id"]), str(condition)), score
+    return best_key
+
+
+def build_metric_table(result_rows: list[dict]) -> str:
     quality_span = len(QUALITY_METRICS) * len(SECTIONS)
     header_1 = (
         th("#", rowspan=3)
@@ -180,10 +199,11 @@ def build_metric_table(result_rows: list[dict], best_idx: int | None = None) -> 
             header_3 += th(SECTION_LABELS[section], strong_left=index == 0)
     header_3 += th("input", strong_left=True) + th("output") + th("total")
 
+    best_key = best_feedback_key(result_rows)
     table_rows = []
     for row in result_rows:
         signed = row.get("self_feedback") in {"Delta", "Δ"}
-        is_best = best_idx is not None and str(row["id"]) == str(best_idx)
+        is_best = best_key is not None and (str(row["id"]), str(row["self_feedback"])) == best_key
         cells = [
             td(row["id"]),
             td(row["experiment"]),
@@ -198,7 +218,7 @@ def build_metric_table(result_rows: list[dict], best_idx: int | None = None) -> 
             td(fmt_full(row["mean_output_tokens"], signed=signed)),
             td(fmt_full(row["mean_total_tokens"], signed=signed)),
         ])
-        row_style = ' style="background-color: #fff8c5;"' if is_best else ""
+        row_style = ' style="background-color: #fff8c5; font-weight: 700;"' if is_best else ""
         table_rows.append(f"    <tr{row_style}>" + "".join(cells) + "</tr>")
 
     return "\n".join([
@@ -217,7 +237,6 @@ def build_metric_table(result_rows: list[dict], best_idx: int | None = None) -> 
 
 def build_full_section(title: str, dev_desc: str, exps: dict, labels: dict) -> str:
     best_idx = best_rag_exp(exps)
-    best_model_idx = best_model_exp(exps)
     best_note = (
         f"Best RAG config (exps 1–6): **exp {best_idx}** ({parenthetical_label(labels[best_idx])})."
         if best_idx >= 0 else "Best RAG config pending."
@@ -236,7 +255,7 @@ def build_full_section(title: str, dev_desc: str, exps: dict, labels: dict) -> s
         for idx in range(11)
     ]
     result_rows = expand_feedback_rows(status_rows)
-    table = build_metric_table(result_rows, best_idx=best_model_idx)
+    table = build_metric_table(result_rows)
 
     return f"""
 ### {title}

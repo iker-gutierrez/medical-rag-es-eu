@@ -263,9 +263,27 @@ def best_model_id(rows: list[dict[str, Any]]) -> str | None:
         if score is None:
             continue
         score = float(score)
+        delta = row.get("overall_self_feedback_delta_bertscore")
+        if delta is not None:
+            score = max(score, score + float(delta))
         if score > best_score:
             best_id, best_score = str(row["id"]), score
     return best_id
+
+
+def best_feedback_key(rows: list[dict[str, Any]]) -> tuple[str, str] | None:
+    best_key, best_score = None, -1.0
+    for row in rows:
+        condition = row.get("self_feedback")
+        if condition not in {"noSF", "SF"}:
+            continue
+        score = row.get("overall_bertscore_f1")
+        if score is None:
+            continue
+        score = float(score)
+        if score > best_score:
+            best_key, best_score = (str(row["id"]), str(condition)), score
+    return best_key
 
 
 def build_rows(metrics_dir: Path) -> list[dict[str, Any]]:
@@ -418,10 +436,11 @@ def write_markdown(status_rows: list[dict[str, Any]], result_rows: list[dict[str
     header_3 += th("input", strong_left=True) + th("output") + th("total")
 
     best_id = best_model_id(status_rows)
+    best_key = best_feedback_key(result_rows)
     table_rows = []
     for row in result_rows:
         signed = row.get("self_feedback") in {"Delta", "Δ"}
-        is_best = best_id is not None and str(row["id"]) == best_id
+        is_best = best_key is not None and (str(row["id"]), str(row["self_feedback"])) == best_key
         cells = [
             td(row["id"]),
             td(row["experiment"]),
@@ -438,7 +457,7 @@ def write_markdown(status_rows: list[dict[str, Any]], result_rows: list[dict[str
                 td(fmt(row["mean_total_tokens"], signed=signed)),
             ]
         )
-        row_style = ' style="background-color: #fff8c5;"' if is_best else ""
+        row_style = ' style="background-color: #fff8c5; font-weight: 700;"' if is_best else ""
         table_rows.append(f"    <tr{row_style}>" + "".join(cells) + "</tr>")
 
     status_by_id = {str(row["id"]): row for row in status_rows}
