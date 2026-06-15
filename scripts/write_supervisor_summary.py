@@ -256,6 +256,18 @@ def expand_feedback_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return expanded
 
 
+def best_model_id(rows: list[dict[str, Any]]) -> str | None:
+    best_id, best_score = None, -1.0
+    for row in rows:
+        score = row.get("overall_bertscore_f1")
+        if score is None:
+            continue
+        score = float(score)
+        if score > best_score:
+            best_id, best_score = str(row["id"]), score
+    return best_id
+
+
 def build_rows(metrics_dir: Path) -> list[dict[str, Any]]:
     return [
         make_row(
@@ -405,9 +417,11 @@ def write_markdown(status_rows: list[dict[str, Any]], result_rows: list[dict[str
             header_3 += th(SECTION_LABELS[section], strong_left=index == 0)
     header_3 += th("input", strong_left=True) + th("output") + th("total")
 
+    best_id = best_model_id(status_rows)
     table_rows = []
     for row in result_rows:
         signed = row.get("self_feedback") in {"Delta", "Δ"}
+        is_best = best_id is not None and str(row["id"]) == best_id
         cells = [
             td(row["id"]),
             td(row["experiment"]),
@@ -424,7 +438,18 @@ def write_markdown(status_rows: list[dict[str, Any]], result_rows: list[dict[str
                 td(fmt(row["mean_total_tokens"], signed=signed)),
             ]
         )
-        table_rows.append("    <tr>" + "".join(cells) + "</tr>")
+        row_style = ' style="background-color: #fff8c5;"' if is_best else ""
+        table_rows.append(f"    <tr{row_style}>" + "".join(cells) + "</tr>")
+
+    status_by_id = {str(row["id"]): row for row in status_rows}
+
+    def summary_row(row_id: str) -> str:
+        row = status_by_id[row_id]
+        bert = fmt(row.get("overall_bertscore_f1"))
+        delta = fmt(row.get("overall_self_feedback_delta_bertscore"), signed=True)
+        if row_id == best_id:
+            return f"| **{row_id}** | **{row['experiment']}** | **{bert}** | **{delta}** |"
+        return f"| {row_id} | {row['experiment']} | {bert} | {delta} |"
 
     lines = [
         "# Dev ablation summary",
@@ -470,21 +495,21 @@ def write_markdown(status_rows: list[dict[str, Any]], result_rows: list[dict[str
             "",
             "| # | Experiment | BERT | SF Δ |",
             "|---:|---|---:|---:|",
-            "| 0 | Baseline LLM only | 63.41 | +0.05 |",
+            summary_row("0"),
             "| | *Direct e5 retrieval (no reranker)* | | |",
-            "| 1 | e5 top 1 | 68.48 | +0.79 |",
-            "| 2 | e5 top 3 | 72.32 | +0.45 |",
-            "| 3 | e5 top 5 | 73.34 | +0.18 |",
+            summary_row("1"),
+            summary_row("2"),
+            summary_row("3"),
             "| | *E5 top15 + cross-encoder reranker* | | |",
-            "| 4 | rerank top 1 | 69.83 | +0.25 |",
-            "| 5 | rerank top 3 | 74.47 | −0.66 |",
-            "| 6 | **rerank top 5** | **76.20** | −0.38 |",
+            summary_row("4"),
+            summary_row("5"),
+            summary_row("6"),
             "| | *Few-shot* | | |",
-            "| 7 | 3-shot, no RAG | 68.39 | −2.37 |",
-            "| 8 | **3-shot + rerank top 5** | **76.72** | +0.17 |",
+            summary_row("7"),
+            summary_row("10"),
             "| | *Cross-domain retrieval (rerank top 5)* | | |",
-            "| 9 | CasiMedicos-only index | 64.20 | +0.75 |",
-            "| 10 | SNS + CasiMedicos index | 76.20 | −0.38 |",
+            summary_row("8"),
+            summary_row("9"),
         ]
     )
     path.parent.mkdir(parents=True, exist_ok=True)
