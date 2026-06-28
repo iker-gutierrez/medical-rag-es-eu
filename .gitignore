@@ -35,6 +35,9 @@ SNS_1064/
 # Old prototype
 sns_qa_rag_v1/
 
+# Manuscript (LaTeX source and compiled PDF)
+manuscript/
+
 # Personal notes and exploration files
 becoming_autonomous_with_slurm.py
 codex_history_v2.md
