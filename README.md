@@ -21,7 +21,6 @@ The system is evaluated on two tasks: open-answer clinical QA (SNS-1064) and mul
 - `slurm/`: Slurm job scripts for the AZTI server.
 - `experiments/runs/`: generated predictions and run artifacts.
 - `reports/metrics/`: ablation result tables and summaries.
-- `manuscript/`: LaTeX thesis draft — gitignored, available in Prism.
 - `docs/`: supervisor meeting notes, reading list, bibliography notes.
 
 ## Supervisor meeting materials
