@@ -9,7 +9,7 @@ The system is evaluated on two tasks: open-answer clinical QA (SNS-1064) and mul
 - **Basque dev ablations**: complete. Models: Llama-3.1-8B-Instruct, Latxa-Llama-3.1-8B-Instruct. Datasets: SNS-1064 EU, CasiMédicos-Arg EU, Mixed EU.
 - **Qwen3.5-4B vs 9B comparison**: complete on Spanish dev.
 - **Test set evaluation**: pending supervisor approval.
-- **Thesis manuscript**: draft available locally at `manuscript/main.pdf` (gitignored).
+- **Thesis manuscript**: draft available in Prism (gitignored).
 
 ## Repository layout
 
@@ -21,7 +21,7 @@ The system is evaluated on two tasks: open-answer clinical QA (SNS-1064) and mul
 - `slurm/`: Slurm job scripts for the AZTI server.
 - `experiments/runs/`: generated predictions and run artifacts.
 - `reports/metrics/`: ablation result tables and summaries.
-- `manuscript/`: LaTeX thesis draft (`main.tex`, `main.pdf`) — gitignored, local only.
+- `manuscript/`: LaTeX thesis draft — gitignored, available in Prism.
 - `docs/`: supervisor meeting notes, reading list, bibliography notes.
 
 ## Supervisor meeting materials
@@ -30,7 +30,7 @@ The system is evaluated on two tasks: open-answer clinical QA (SNS-1064) and mul
 - [Meeting 1 notes (2026-06-15)](docs/supervisor_meeting_notes.md)
 - [Spanish dev ablation results](reports/metrics/es_dev_ablation_results.md)
 - [Basque dev ablation results](reports/metrics/eu_dev_ablation_results.md)
-- Thesis manuscript: `manuscript/main.pdf` (available in Prism)
+
 
 ## Key results
 
