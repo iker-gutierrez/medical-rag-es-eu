@@ -1,0 +1,105 @@
+#!/bin/bash
+#SBATCH --job-name=qwen3-8b-sf-eval
+#SBATCH --cpus-per-task=8
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --time=08:00:00
+#SBATCH --mem=48GB
+#SBATCH --gres=gpu:1
+#SBATCH --output=/home/igutierrez134/med_rag_thesis/experiments/slurm_logs/qwen3_8b_sf_evaluation_%j.log
+#SBATCH --error=/home/igutierrez134/med_rag_thesis/experiments/slurm_logs/qwen3_8b_sf_evaluation_%j.err
+#SBATCH --chdir=/home/igutierrez134/med_rag_thesis
+#SBATCH --mail-type=END,FAIL,REQUEUE
+#SBATCH --mail-user=igutierrez134@ikasle.ehu.eus
+
+set -euo pipefail
+
+source /home/igutierrez134/envs/med_rag_thesis/bin/activate
+
+export HF_HOME="/home/igutierrez134/.cache/huggingface"
+export TRANSFORMERS_CACHE="/home/igutierrez134/.cache/huggingface"
+export HF_HUB_CACHE="/home/igutierrez134/.cache/huggingface"
+export TOKENIZERS_PARALLELISM=false
+
+RUN_IDS=(
+  250_qwen3_8b_no_rag_no_think_extractive_sns1064_sf_dev
+  251_qwen3_8b_rag_e5_topk1_no_think_extractive_sns1064_sf_dev
+  252_qwen3_8b_rag_e5_topk3_no_think_extractive_sns1064_sf_dev
+  253_qwen3_8b_rag_e5_topk5_no_think_extractive_sns1064_sf_dev
+  254_qwen3_8b_rag_e5_rerank1_no_think_extractive_sns1064_sf_dev
+  255_qwen3_8b_rag_e5_rerank3_no_think_extractive_sns1064_sf_dev
+  256_qwen3_8b_rag_e5_rerank5_no_think_extractive_sns1064_sf_dev
+  257_qwen3_8b_3shot_no_rag_no_think_extractive_sns1064_sf_dev
+  258_qwen3_8b_rag_cross_domain_e5_rerank5_no_think_extractive_sns1064_sf_dev
+  259_qwen3_8b_rag_mixed_e5_rerank5_no_think_extractive_sns1064_sf_dev
+  260_qwen3_8b_rag_3shot_e5_rerank5_no_think_extractive_sns1064_sf_dev
+  261_qwen3_8b_no_rag_think_extractive_sns1064_sf_dev
+  262_qwen3_8b_rag_e5_topk1_think_extractive_sns1064_sf_dev
+  263_qwen3_8b_rag_e5_topk3_think_extractive_sns1064_sf_dev
+  264_qwen3_8b_rag_e5_topk5_think_extractive_sns1064_sf_dev
+  265_qwen3_8b_rag_e5_rerank1_think_extractive_sns1064_sf_dev
+  266_qwen3_8b_rag_e5_rerank3_think_extractive_sns1064_sf_dev
+  267_qwen3_8b_rag_e5_rerank5_think_extractive_sns1064_sf_dev
+  268_qwen3_8b_3shot_no_rag_think_extractive_sns1064_sf_dev
+  269_qwen3_8b_rag_cross_domain_e5_rerank5_think_extractive_sns1064_sf_dev
+  270_qwen3_8b_rag_mixed_e5_rerank5_think_extractive_sns1064_sf_dev
+  271_qwen3_8b_rag_3shot_e5_rerank5_think_extractive_sns1064_sf_dev
+  272_qwen3_8b_no_rag_no_think_extractive_casimedicos_sf_dev
+  273_qwen3_8b_rag_e5_topk1_no_think_extractive_casimedicos_sf_dev
+  274_qwen3_8b_rag_e5_topk3_no_think_extractive_casimedicos_sf_dev
+  275_qwen3_8b_rag_e5_topk5_no_think_extractive_casimedicos_sf_dev
+  276_qwen3_8b_rag_e5_rerank1_no_think_extractive_casimedicos_sf_dev
+  277_qwen3_8b_rag_e5_rerank3_no_think_extractive_casimedicos_sf_dev
+  278_qwen3_8b_rag_e5_rerank5_no_think_extractive_casimedicos_sf_dev
+  279_qwen3_8b_3shot_no_rag_no_think_extractive_casimedicos_sf_dev
+  280_qwen3_8b_rag_cross_domain_e5_rerank5_no_think_extractive_casimedicos_sf_dev
+  281_qwen3_8b_rag_mixed_e5_rerank5_no_think_extractive_casimedicos_sf_dev
+  282_qwen3_8b_rag_3shot_e5_rerank5_no_think_extractive_casimedicos_sf_dev
+  283_qwen3_8b_no_rag_think_extractive_casimedicos_sf_dev
+  284_qwen3_8b_rag_e5_topk1_think_extractive_casimedicos_sf_dev
+  285_qwen3_8b_rag_e5_topk3_think_extractive_casimedicos_sf_dev
+  286_qwen3_8b_rag_e5_topk5_think_extractive_casimedicos_sf_dev
+  287_qwen3_8b_rag_e5_rerank1_think_extractive_casimedicos_sf_dev
+  288_qwen3_8b_rag_e5_rerank3_think_extractive_casimedicos_sf_dev
+  289_qwen3_8b_rag_e5_rerank5_think_extractive_casimedicos_sf_dev
+  290_qwen3_8b_3shot_no_rag_think_extractive_casimedicos_sf_dev
+  291_qwen3_8b_rag_cross_domain_e5_rerank5_think_extractive_casimedicos_sf_dev
+  292_qwen3_8b_rag_mixed_e5_rerank5_think_extractive_casimedicos_sf_dev
+  293_qwen3_8b_rag_3shot_e5_rerank5_think_extractive_casimedicos_sf_dev
+  294_qwen3_8b_no_rag_no_think_extractive_mixed_sf_dev
+  295_qwen3_8b_rag_e5_topk1_no_think_extractive_mixed_sf_dev
+  296_qwen3_8b_rag_e5_topk3_no_think_extractive_mixed_sf_dev
+  297_qwen3_8b_rag_e5_topk5_no_think_extractive_mixed_sf_dev
+  298_qwen3_8b_rag_e5_rerank1_no_think_extractive_mixed_sf_dev
+  299_qwen3_8b_rag_e5_rerank3_no_think_extractive_mixed_sf_dev
+  300_qwen3_8b_rag_e5_rerank5_no_think_extractive_mixed_sf_dev
+  301_qwen3_8b_3shot_no_rag_no_think_extractive_mixed_sf_dev
+  302_qwen3_8b_rag_sns1064_e5_rerank5_no_think_extractive_mixed_sf_dev
+  303_qwen3_8b_rag_casimedicos_e5_rerank5_no_think_extractive_mixed_sf_dev
+  304_qwen3_8b_rag_3shot_e5_rerank5_no_think_extractive_mixed_sf_dev
+  305_qwen3_8b_no_rag_think_extractive_mixed_sf_dev
+  306_qwen3_8b_rag_e5_topk1_think_extractive_mixed_sf_dev
+  307_qwen3_8b_rag_e5_topk3_think_extractive_mixed_sf_dev
+  308_qwen3_8b_rag_e5_topk5_think_extractive_mixed_sf_dev
+  309_qwen3_8b_rag_e5_rerank1_think_extractive_mixed_sf_dev
+  310_qwen3_8b_rag_e5_rerank3_think_extractive_mixed_sf_dev
+  311_qwen3_8b_rag_e5_rerank5_think_extractive_mixed_sf_dev
+  312_qwen3_8b_3shot_no_rag_think_extractive_mixed_sf_dev
+  313_qwen3_8b_rag_sns1064_e5_rerank5_think_extractive_mixed_sf_dev
+  314_qwen3_8b_rag_casimedicos_e5_rerank5_think_extractive_mixed_sf_dev
+  315_qwen3_8b_rag_3shot_e5_rerank5_think_extractive_mixed_sf_dev
+)
+
+echo "Qwen3-8B SF evaluation started on $(hostname) at $(date)"
+
+for run_id in "${RUN_IDS[@]}"; do
+  echo "Evaluating ${run_id}"
+  python scripts/evaluate_predictions.py \
+    --predictions "experiments/runs/${run_id}/predictions.jsonl" \
+    --output "reports/metrics/${run_id}.json" \
+    --semantic-model intfloat/multilingual-e5-large \
+    --bertscore-model bert-base-multilingual-cased \
+    --bertscore-lang es
+done
+
+echo "Qwen3-8B SF evaluation finished at $(date)"

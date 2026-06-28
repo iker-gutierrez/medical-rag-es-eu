@@ -1,0 +1,16 @@
+{
+  "model": "HiTZ/Latxa-Llama-3.1-8B-Instruct",
+  "language": "eu",
+  "prompt_style": "extractive",
+  "think": false,
+  "self_feedback": true,
+  "max_new_tokens": 256,
+  "feedback_max_new_tokens": 256,
+  "temperature": 0.0,
+  "input": "data/processed/casimedicos_eu/dev.jsonl",
+  "trust_remote_code": true,
+  "retrieval_index": "models/retrieval/casimedicos_eu_train_multilingual_e5_large",
+  "retrieval_top_k": 1,
+  "experiment_name": "latxa_llama31_8b_rag_e5_topk1_extractive_casimedicos_eu",
+  "output": "experiments/runs/140_latxa_llama31_8b_rag_e5_topk1_extractive_casimedicos_eu_dev/predictions.jsonl"
+}

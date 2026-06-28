@@ -1,0 +1,17 @@
+{
+  "experiment_name": "qwen3_8b_rag_e5_rerank3_no_think_extractive_sns1064",
+  "input": "data/processed/sns1064/dev.jsonl",
+  "output": "experiments/runs/189_qwen3_8b_rag_e5_rerank3_no_think_extractive_sns1064_dev/predictions.jsonl",
+  "model": "Qwen/Qwen3-8B",
+  "prompt_style": "extractive",
+  "think": false,
+  "self_feedback": false,
+  "temperature": 0.0,
+  "trust_remote_code": true,
+  "retrieval_index": "models/retrieval/sns1064_train_multilingual_e5_large",
+  "retrieval_top_k": 15,
+  "reranker_model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+  "reranker_top_k": 3,
+  "reranker_device": "cpu",
+  "max_new_tokens": 1024
+}

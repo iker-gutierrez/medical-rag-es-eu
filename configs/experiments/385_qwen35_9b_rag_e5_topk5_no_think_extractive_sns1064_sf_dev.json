@@ -1,0 +1,16 @@
+{
+  "experiment_name": "qwen35_9b_rag_e5_topk5_no_think_extractive_sns1064_sf",
+  "input": "data/processed/sns1064/dev.jsonl",
+  "output": "experiments/runs/385_qwen35_9b_rag_e5_topk5_no_think_extractive_sns1064_sf_dev/predictions.jsonl",
+  "initial_predictions": "experiments/runs/319_qwen35_9b_rag_e5_topk5_no_think_extractive_sns1064_dev/predictions.jsonl",
+  "model": "Qwen/Qwen3.5-9B",
+  "prompt_style": "extractive",
+  "think": false,
+  "self_feedback": true,
+  "temperature": 0.0,
+  "trust_remote_code": true,
+  "max_new_tokens": 1024,
+  "feedback_max_new_tokens": 512,
+  "retrieval_index": "models/retrieval/sns1064_train_multilingual_e5_large",
+  "retrieval_top_k": 5
+}

@@ -1,0 +1,16 @@
+{
+  "experiment_name": "qwen3_8b_3shot_no_rag_think_extractive_casimedicos",
+  "input": "data/processed/casimedicos/dev.jsonl",
+  "output": "experiments/runs/224_qwen3_8b_3shot_no_rag_think_extractive_casimedicos_dev/predictions.jsonl",
+  "model": "Qwen/Qwen3-8B",
+  "prompt_style": "extractive",
+  "think": true,
+  "self_feedback": false,
+  "temperature": 0.0,
+  "trust_remote_code": true,
+  "retrieval_top_k": 0,
+  "few_shot_file": "data/processed/casimedicos/train.jsonl",
+  "few_shot_k": 3,
+  "few_shot_mode": "random",
+  "max_new_tokens": 1024
+}

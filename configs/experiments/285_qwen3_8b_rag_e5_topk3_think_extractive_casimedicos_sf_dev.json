@@ -1,0 +1,15 @@
+{
+  "experiment_name": "qwen3_8b_rag_e5_topk3_think_extractive_casimedicos_sf",
+  "input": "data/processed/casimedicos/dev.jsonl",
+  "output": "experiments/runs/285_qwen3_8b_rag_e5_topk3_think_extractive_casimedicos_sf_dev/predictions.jsonl",
+  "model": "Qwen/Qwen3-8B",
+  "prompt_style": "extractive",
+  "think": true,
+  "self_feedback": true,
+  "temperature": 0.0,
+  "trust_remote_code": true,
+  "retrieval_index": "models/retrieval/casimedicos_train_multilingual_e5_large",
+  "retrieval_top_k": 3,
+  "max_new_tokens": 1024,
+  "feedback_max_new_tokens": 512
+}

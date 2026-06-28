@@ -4,15 +4,9 @@ import re
 from typing import Any, Mapping, Optional, Sequence
 
 
-SYSTEM_PROMPT_ES = (
-    "Eres un asistente clínico. Responde en español con una respuesta breve, "
-    "y evidencia concreta. No inventes datos."
-)
+SYSTEM_PROMPT_ES = "Eres un experto clínico."
 
-SYSTEM_PROMPT_EU = (
-    "Mediku laguntzaile bat zara. Erantzun euskaraz erantzun labur eta zehatzak emanez. "
-    "Ez asmatu datuak."
-)
+SYSTEM_PROMPT_EU = "Aditu klinikoa zara."
 
 SYSTEM_PROMPTS = {"es": SYSTEM_PROMPT_ES, "eu": SYSTEM_PROMPT_EU}
 
@@ -119,12 +113,10 @@ def build_extractive_user_prompt(
 
     if has_context:
         sections = [
-            "Tu tarea es EXTRAER información del contexto recuperado, no inventar ni reformular.",
+            "Tu tarea es responder usando la información del contexto recuperado, sin inventar datos.",
             "Reglas:\n"
-            "- Usa SOLO información del contexto recuperado\n"
-            "- NO añadas información externa\n"
-            "- COPIA frases exactas cuando sea posible\n"
-            "- Mantén el idioma en español\n"
+            "- Basa tu respuesta en la información del contexto recuperado. NO añadas información externa. COPIA frases exactas cuando sea posible.\n"
+            "- Responde en español.\n"
             "- Responde SIEMPRE en este formato:\n\n"
             "Respuesta corta:\n"
             "(texto extraído)\n\n"
@@ -133,17 +125,17 @@ def build_extractive_user_prompt(
         ]
     else:
         sections = [
-            "Tu tarea es responder la pregunta clínica de forma breve y justificada.",
+            "Tu tarea es responder la pregunta clínica de forma justificada.",
             "Reglas:\n"
-            "- Usa la información de la pregunta y las opciones, si las hay\n"
-            "- Puedes apoyarte en conocimiento clínico general\n"
-            "- NO inventes datos concretos que no puedas justificar\n"
-            "- Mantén el idioma en español\n"
+            "- Usa la información de la pregunta (y las opciones de respuesta, si las hay).\n"
+            "- Puedes apoyarte en conocimiento clínico general.\n"
+            "- NO inventes datos concretos que no puedas justificar.\n"
+            "- Responde en español.\n"
             "- Responde SIEMPRE en este formato:\n\n"
             "Respuesta corta:\n"
             "(respuesta breve)\n\n"
             "Evidencia:\n"
-            "(justificación breve)"
+            "(justificación)"
         ]
     if examples:
         sections.append("Usa estos ejemplos solo para aprender el formato de salida:\n\n" + format_examples(examples))
@@ -168,12 +160,11 @@ def build_extractive_user_prompt_eu(
 
     if has_context:
         sections = [
-            "Zure zeregina errekuperatutako testuingurutik informazioa ERAUZTEA da, ez asmatzea eta ez berformulatzea.",
+            "Zure zeregina errekuperatutako testuinguruko informazioa erabiliz erantzutea da, daturik asmatu gabe.",
             "Arauak:\n"
-            "- Erabili SOILIK errekuperatutako testuingurutik datorren informazioa\n"
-            "- EZ gehitu kanpoko informaziorik\n"
-            "- KOPIATU esaldi zehatzak posible denean\n"
-            "- Erantzun BETI honako formatuan:\n\n"
+            "- Oinarritu erantzuna errekuperatutako testuinguruko informazioan. EZ gehitu kanpoko informaziorik. KOPIATU esaldi osoak posible denean.\n"
+            "- Erantzun euskaraz.\n"
+            "- Erantzun BETI honako formatuan:\n"
             "Erantzun laburra:\n"
             "(erauztitako testua)\n\n"
             "Ebidentzia:\n"
@@ -181,16 +172,17 @@ def build_extractive_user_prompt_eu(
         ]
     else:
         sections = [
-            "Zure zeregina galdera klinikoa modu labur eta justifikatuan erantzutea da.",
+            "Zure zeregina galdera klinikoa modu justifikatuan erantzutea da.",
             "Arauak:\n"
-            "- Erabili galderaren informazioa eta aukerak, egonez gero\n"
-            "- Klinikako ezagutza orokorraz baliatu zaitezke\n"
-            "- EZ asmatu justifika ezin duzun datu zehatzik\n"
+            "- Erabili galderaren informazioa (eta erantzun-aukerak, egonez gero).\n"
+            "- Medikuntzako ezagutza orokorraz baliatu zaitezke.\n"
+            "- EZ asmatu justifika ezin duzun datu zehatzik.\n"
+            "- Erantzun euskaraz.\n"
             "- Erantzun BETI honako formatuan:\n\n"
             "Erantzun laburra:\n"
             "(erantzun laburra)\n\n"
             "Ebidentzia:\n"
-            "(justifikazio laburra)"
+            "(ebidentzia edo justifikazioa)"
         ]
     if examples:
         sections.append(
@@ -232,30 +224,29 @@ def build_extractive_self_feedback_prompt(
     if has_context:
         checks = (
             "Comprueba:\n"
-            "- si está basada en el contexto recuperado\n"
-            "- si hay alucinaciones\n"
-            "- si falta información"
+            "- si está basada en el contexto recuperado.\n"
+            "- si hay alucinaciones.\n"
+            "- si falta información."
         )
-        grounding_rule = "- Usa SOLO información del contexto recuperado"
+        grounding_rule = "- Usa SOLO información del contexto recuperado."
     else:
         checks = (
             "Comprueba:\n"
-            "- si responde a la pregunta\n"
-            "- si hay alucinaciones\n"
-            "- si falta información relevante"
+            "- si responde a la pregunta.\n"
+            "- si hay alucinaciones.\n"
+            "- si falta información relevante."
         )
-        grounding_rule = "- Usa la pregunta, las opciones si existen, y conocimiento clínico general"
+        grounding_rule = "- Usa la pregunta, las opciones de respuesta (si existen), y conocimiento clínico general."
     answer_placeholder = "texto extraído" if has_context else "respuesta breve"
-    evidence_placeholder = "texto extraído" if has_context else "justificación breve"
+    evidence_placeholder = "texto extraído" if has_context else "justificación"
     sections = [
         "Revisa la siguiente respuesta.",
         checks,
         "Reescribe la respuesta mejorada.",
         "Reglas obligatorias:\n"
-        "- Responde SOLO con los dos campos indicados\n"
-        "- NO incluyas Contexto recuperado, Contexto, Pregunta, Opciones, Respuesta original ni explicaciones\n"
-        "- NO repitas las instrucciones\n"
-        "- Mantén el idioma en español\n"
+        "- Responde SOLO con los dos campos indicados: \"Respuesta corta\" y \"Evidencia\".\n"
+        "- NO repitas las instrucciones.\n"
+        "- Responde en español.\n"
         f"{grounding_rule}",
         (
             "Responde SIEMPRE en este formato:\n\n"
@@ -273,7 +264,7 @@ def build_extractive_self_feedback_prompt(
     sections.extend(
         [
             "Respuesta original:\n" + answer,
-            "Respuesta mejorada:",
+            "Escribe ahora únicamente la respuesta final con los dos campos indicados.",
         ]
     )
     return "\n\n".join(sections)
@@ -292,29 +283,29 @@ def build_extractive_self_feedback_prompt_eu(
     if has_context:
         checks = (
             "Egiaztatu:\n"
-            "- errekuperatutako testuinguruan oinarritua dagoen\n"
-            "- aluzinazioak dauden\n"
-            "- informazioa falta den"
+            "- errekuperatutako testuinguruan oinarritua dagoen.\n"
+            "- aluzinazioak dauden.\n"
+            "- informazioa falta den."
         )
-        grounding_rule = "- Erabili SOILIK errekuperatutako testuingurutik datorren informazioa"
+        grounding_rule = "- Erabili SOILIK errekuperatutako testuingurutik datorren informazioa."
     else:
         checks = (
             "Egiaztatu:\n"
-            "- galderari erantzuten dion\n"
-            "- aluzinazioak dauden\n"
-            "- informazio garrantzitsua falta den"
+            "- galderari erantzuten dion.\n"
+            "- aluzinazioak dauden.\n"
+            "- informazio garrantzitsua falta den."
         )
-        grounding_rule = "- Erabili galdera, aukerak egonez gero, eta klinikako ezagutza orokorra"
+        grounding_rule = "- Erabili galdera, erantzun-aukerak (egonez gero), eta medikuntzako ezagutza orokorra."
     answer_placeholder = "erauztitako testua" if has_context else "erantzun laburra"
-    evidence_placeholder = "erauztitako testua" if has_context else "justifikazio laburra"
+    evidence_placeholder = "erauztitako testua" if has_context else "ebidentzia edo justifikazioa"
     sections = [
         "Ondorengo erantzuna berrikusi.",
         checks,
         "Erantzun hobetua berridatzi.",
         "Arau derrigorrezkoak:\n"
-        "- Erantzun SOILIK bi zehaztutako eremuetan\n"
-        "- EZ gehitu errekuperatutako testuingurua, galdera, aukerak, jatorrizko erantzuna edo azalpenak\n"
-        "- EZ errepikatu argibideak\n"
+        "- Erantzun SOILIK bi eremu hauekin: \"Erantzun laburra\" eta \"Ebidentzia\".\n"
+        "- EZ errepikatu argibideak.\n"
+        "- Erantzun euskaraz.\n"
         f"{grounding_rule}",
         (
             "Erantzun BETI honako formatuan:\n\n"
@@ -332,7 +323,7 @@ def build_extractive_self_feedback_prompt_eu(
     sections.extend(
         [
             "Jatorrizko erantzuna:\n" + answer,
-            "Erantzun hobetua:",
+            "Idatzi orain azken erantzuna soilik, adierazitako bi eremuekin.",
         ]
     )
     return "\n\n".join(sections)

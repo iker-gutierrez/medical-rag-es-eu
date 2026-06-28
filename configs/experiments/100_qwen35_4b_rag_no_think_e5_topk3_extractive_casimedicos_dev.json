@@ -1,0 +1,14 @@
+{
+  "experiment_name": "qwen35_4b_rag_no_think_e5_topk3_extractive_casimedicos",
+  "input": "data/processed/casimedicos/dev.jsonl",
+  "output": "experiments/runs/100_qwen35_4b_rag_no_think_e5_topk3_extractive_casimedicos_dev/predictions.jsonl",
+  "model": "Qwen/Qwen3.5-4B",
+  "prompt_style": "extractive",
+  "think": false,
+  "self_feedback": false,
+  "max_new_tokens": 1024,
+  "temperature": 0.0,
+  "retrieval_index": "models/retrieval/casimedicos_train_multilingual_e5_large",
+  "retrieval_top_k": 3,
+  "trust_remote_code": true
+}

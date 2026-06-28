@@ -1,0 +1,21 @@
+{
+  "experiment_name": "qwen3_8b_rag_3shot_e5_rerank5_think_extractive_mixed_sf",
+  "input": "data/processed/sns1064_casimedicos/dev.jsonl",
+  "output": "experiments/runs/315_qwen3_8b_rag_3shot_e5_rerank5_think_extractive_mixed_sf_dev/predictions.jsonl",
+  "model": "Qwen/Qwen3-8B",
+  "prompt_style": "extractive",
+  "think": true,
+  "self_feedback": true,
+  "temperature": 0.0,
+  "trust_remote_code": true,
+  "retrieval_index": "models/retrieval/sns1064_casimedicos_train_multilingual_e5_large",
+  "retrieval_top_k": 15,
+  "reranker_model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+  "reranker_top_k": 5,
+  "reranker_device": "cpu",
+  "few_shot_file": "data/processed/sns1064_casimedicos/train.jsonl",
+  "few_shot_k": 3,
+  "few_shot_mode": "random",
+  "max_new_tokens": 1024,
+  "feedback_max_new_tokens": 512
+}

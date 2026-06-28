@@ -1,0 +1,17 @@
+{
+  "experiment_name": "qwen3_8b_3shot_no_rag_no_think_extractive_mixed_sf",
+  "input": "data/processed/sns1064_casimedicos/dev.jsonl",
+  "output": "experiments/runs/301_qwen3_8b_3shot_no_rag_no_think_extractive_mixed_sf_dev/predictions.jsonl",
+  "model": "Qwen/Qwen3-8B",
+  "prompt_style": "extractive",
+  "think": false,
+  "self_feedback": true,
+  "temperature": 0.0,
+  "trust_remote_code": true,
+  "retrieval_top_k": 0,
+  "few_shot_file": "data/processed/sns1064_casimedicos/train.jsonl",
+  "few_shot_k": 3,
+  "few_shot_mode": "random",
+  "max_new_tokens": 1024,
+  "feedback_max_new_tokens": 512
+}

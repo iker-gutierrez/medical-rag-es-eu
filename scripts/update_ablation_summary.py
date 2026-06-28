@@ -26,7 +26,7 @@ from write_supervisor_summary import (  # noqa: E402
 )
 
 METRICS_DIR = Path("reports/metrics")
-SUMMARY_PATH = Path("reports/metrics/dev_ablation_results.md")
+SUMMARY_PATH = Path("reports/metrics/es_dev_ablation_results.md")
 
 # ── experiment definitions ────────────────────────────────────────────────────
 
@@ -238,7 +238,7 @@ def build_metric_table(result_rows: list[dict]) -> str:
     header_1 = (
         th("#", rowspan=3)
         + th("experiment", rowspan=3)
-        + th("self-feedback", rowspan=3)
+        + th("reasoning", rowspan=3)
         + th("Quality ↑", colspan=quality_span, strong_left=True)
         + th("Cost ↓", colspan=4, strong_left=True)
     )
@@ -337,7 +337,7 @@ def main() -> None:
 
     takeaways_marker = "\n## Takeaways\n"
     if takeaways_marker not in content:
-        raise RuntimeError("Could not find Takeaways section in dev_ablation_results.md")
+        raise RuntimeError("Could not find Takeaways section in es_dev_ablation_results.md")
     current_results, takeaways = content.split(takeaways_marker, maxsplit=1)
 
     content = (
@@ -354,7 +354,7 @@ def main() -> None:
         + KEY_INSIGHTS
     )
     SUMMARY_PATH.write_text(content)
-    print("dev_ablation_results.md updated.")
+    print("es_dev_ablation_results.md updated.")
 
 
 if __name__ == "__main__":

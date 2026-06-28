@@ -113,6 +113,11 @@ def rerank_documents(
     return reranked
 
 
+def uses_native_qwen_thinking(model_name: str) -> bool:
+    normalized = model_name.lower()
+    return "qwen/qwen3" in normalized or "qwen3" in normalized
+
+
 def dry_prompt(
     record: dict[str, Any],
     examples: list[dict[str, Any]],
@@ -177,6 +182,7 @@ def run(args: argparse.Namespace) -> None:
             trust_remote_code=args.trust_remote_code,
         )
         model_load_seconds = time.perf_counter() - model_load_started
+    native_thinking = uses_native_qwen_thinking(args.model)
 
     outputs = []
     for ordinal, record in enumerate(records, start=1):
@@ -242,6 +248,7 @@ def run(args: argparse.Namespace) -> None:
                 no_think=no_think,
                 prompt_style=args.prompt_style,
                 language=args.language,
+                enable_thinking=args.think if native_thinking else None,
             )
             prompt_seconds = time.perf_counter() - prompt_started
             input_tokens = len(tokenizer(prompt)["input_ids"])
@@ -253,6 +260,7 @@ def run(args: argparse.Namespace) -> None:
                 max_new_tokens=args.max_new_tokens,
                 temperature=args.temperature,
                 top_p=args.top_p,
+                enable_thinking=args.think if native_thinking else None,
             )
             generation_seconds = time.perf_counter() - generation_started
             prediction = initial_prediction
@@ -268,6 +276,7 @@ def run(args: argparse.Namespace) -> None:
                     documents=retrieval_docs,
                     prompt_style=args.prompt_style,
                     language=args.language,
+                    enable_thinking=args.think if native_thinking else None,
                 )
                 feedback_input_tokens = len(tokenizer(feedback_prompt)["input_ids"])
                 feedback_started = time.perf_counter()
@@ -278,6 +287,7 @@ def run(args: argparse.Namespace) -> None:
                     max_new_tokens=args.feedback_max_new_tokens or args.max_new_tokens,
                     temperature=args.temperature,
                     top_p=args.top_p,
+                    enable_thinking=args.think if native_thinking else None,
                 )
                 feedback_generation_seconds = time.perf_counter() - feedback_started
             output_tokens = len(tokenizer(prediction)["input_ids"]) if prediction else 0
@@ -290,6 +300,7 @@ def run(args: argparse.Namespace) -> None:
             "prompt_style": args.prompt_style,
             "rag_condition": "rag" if args.retrieval_index and args.retrieval_top_k > 0 else "no_rag",
             "reasoning_condition": "think" if args.think else "no_think",
+            "native_thinking": native_thinking,
             "source": record.get("source"),
             "topic": record.get("topic"),
             "question": record.get("question"),
@@ -337,6 +348,7 @@ def run(args: argparse.Namespace) -> None:
         "prompt_style": args.prompt_style,
         "rag_condition": "rag" if args.retrieval_index and args.retrieval_top_k > 0 else "no_rag",
         "reasoning_condition": "think" if args.think else "no_think",
+        "native_thinking": native_thinking,
         "input": args.input,
         "output": args.output,
         "num_records": len(outputs),

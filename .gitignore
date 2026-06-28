@@ -32,6 +32,11 @@ reports/metrics/*
 # SNS-1064 paper (dataset not included)
 SNS_1064/
 
+# Personal notes and exploration files
+becoming_autonomous_with_slurm.py
+codex_history_v2.md
+experiments/codex_history.txt
+
 # Local machine state
 .env
 .cache/

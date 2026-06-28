@@ -1,0 +1,15 @@
+{
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "language": "eu",
+  "prompt_style": "extractive",
+  "think": false,
+  "self_feedback": true,
+  "max_new_tokens": 256,
+  "feedback_max_new_tokens": 256,
+  "temperature": 0.0,
+  "input": "data/processed/sns1064_eu/dev.jsonl",
+  "few_shot_k": 0,
+  "retrieval_top_k": 0,
+  "experiment_name": "llama31_8b_no_rag_extractive_sns1064_eu",
+  "output": "experiments/runs/106_llama31_8b_no_rag_extractive_sns1064_eu_dev/predictions.jsonl"
+}

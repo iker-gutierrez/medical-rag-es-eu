@@ -1,0 +1,17 @@
+{
+  "experiment_name": "qwen3_8b_3shot_no_rag_think_extractive_sns1064_sf",
+  "input": "data/processed/sns1064/dev.jsonl",
+  "output": "experiments/runs/268_qwen3_8b_3shot_no_rag_think_extractive_sns1064_sf_dev/predictions.jsonl",
+  "model": "Qwen/Qwen3-8B",
+  "prompt_style": "extractive",
+  "think": true,
+  "self_feedback": true,
+  "temperature": 0.0,
+  "trust_remote_code": true,
+  "retrieval_top_k": 0,
+  "few_shot_file": "data/processed/sns1064/train.jsonl",
+  "few_shot_k": 3,
+  "few_shot_mode": "random",
+  "max_new_tokens": 1024,
+  "feedback_max_new_tokens": 512
+}
