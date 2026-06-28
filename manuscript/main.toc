@@ -1,0 +1,37 @@
+\babel@toc {english}{}\relax 
+\contentsline {section}{\numberline {1}Project definition}{1}{}%
+\contentsline {subsection}{\numberline {1.1}Motivation}{1}{}%
+\contentsline {subsection}{\numberline {1.2}Objectives}{1}{}%
+\contentsline {subsection}{\numberline {1.3}Hypothesis}{1}{}%
+\contentsline {section}{\numberline {2}System description}{1}{}%
+\contentsline {subsection}{\numberline {2.1}Retrieval pipeline}{1}{}%
+\contentsline {subsection}{\numberline {2.2}Generation}{1}{}%
+\contentsline {subsection}{\numberline {2.3}Self-feedback}{2}{}%
+\contentsline {subsection}{\numberline {2.4}Evaluation metrics}{2}{}%
+\contentsline {section}{\numberline {3}The SNS-1064 Dataset}{2}{}%
+\contentsline {subsection}{\numberline {3.1}Dataset characteristics}{2}{}%
+\contentsline {subsubsection}{\numberline {3.1.1}Qualitative description}{2}{}%
+\contentsline {subsubsection}{\numberline {3.1.2}Quantitative description}{3}{}%
+\contentsline {subsection}{\numberline {3.2}Dataset construction pipeline}{4}{}%
+\contentsline {subsubsection}{\numberline {3.2.1}PDF-to-TXT}{4}{}%
+\contentsline {subsubsection}{\numberline {3.2.2}Text cleaning}{4}{}%
+\contentsline {subsubsection}{\numberline {3.2.3}Text segmentation}{5}{}%
+\contentsline {subsubsection}{\numberline {3.2.4}Sample filtering}{5}{}%
+\contentsline {subsubsection}{\numberline {3.2.5}Intermediate automatic evaluation}{6}{}%
+\contentsline {subsubsection}{\numberline {3.2.6}Train/test split}{6}{}%
+\contentsline {subsubsection}{\numberline {3.2.7}Manual curation}{7}{}%
+\contentsline {subsubsection}{\numberline {3.2.8}Manual evaluation}{7}{}%
+\contentsline {subsubsection}{\numberline {3.2.9}Final automatic evaluation}{7}{}%
+\contentsline {subsection}{\numberline {3.3}Applicability to RAG-based clinical QA}{7}{}%
+\contentsline {section}{\numberline {4}Evaluation datasets}{8}{}%
+\contentsline {section}{\numberline {5}Dev ablation results}{8}{}%
+\contentsline {subsection}{\numberline {5.1}Spanish results}{8}{}%
+\contentsline {subsection}{\numberline {5.2}Basque results}{13}{}%
+\contentsline {section}{\numberline {6}Discussion}{18}{}%
+\contentsline {subsection}{\numberline {6.1}Effect of retrieval and reranking}{18}{}%
+\contentsline {subsection}{\numberline {6.2}Effect of few-shot prompting}{18}{}%
+\contentsline {subsection}{\numberline {6.3}Effect of self-feedback}{18}{}%
+\contentsline {subsection}{\numberline {6.4}Effect of thinking mode (Qwen3.5-9B)}{18}{}%
+\contentsline {subsection}{\numberline {6.5}Qwen3.5-4B vs.\ Qwen3.5-9B: quality-cost tradeoff}{18}{}%
+\contentsline {subsection}{\numberline {6.6}Spanish vs.\ Basque}{19}{}%
+\contentsline {section}{\numberline {7}Conclusions}{19}{}%

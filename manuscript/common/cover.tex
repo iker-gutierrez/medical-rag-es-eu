@@ -1,0 +1,79 @@
+%%%%%%% Don't touch the following lines
+%%%%%%% Taken from MEANING style
+\newcommand {\deltitle}{ \LARGE {\textbf{\Title}}}
+\DocTitle{\ShortTitle}
+\DocDate{\Date}
+
+\addto\captionsbasque{%
+  \renewcommand{\contentsname}{Contents}%
+  \renewcommand{\listfigurename}{List of figures}%
+  \renewcommand{\listtablename}{List of tables}%
+}
+
+\begin{document}
+\begin{titlepage}
+{ \center
+  \begin{minipage}{\textwidth}
+    \centering
+      \vspace{-0.8cm}
+    \includegraphics[height=3cm]{common/ehuLogo}
+    \vspace{0.8cm}
+  \end{minipage}
+}\\
+\begin{minipage}[t][5.5cm][c]{\textwidth}
+  \center
+  \vspace{0.5cm}
+  \deltitle
+  \vspace{1cm}
+{ \large \textbf{Author:} \Authors }\\
+{ \large \textbf{First supervisor:} \TutorOne }\\
+{ \large \textbf{Second supervisor:} \TutorTwo }\\
+\end{minipage}\\
+\vspace{1cm}
+\begin{center}
+%  \centering \textcolor{blue}{\Huge \textbf{hap/lap}}
+  \resizebox{0.7\linewidth}{!}{ \textcolor{blue}{\texttt{hap/lap}}}
+\end{center}
+
+\vspace{0.8cm}
+\begin{center}
+  Hizkuntzaren Azterketa eta Prozesamendua\\Language Analysis and Processing\\
+\vspace{0.8cm}
+  {\Large \textbf{Master Thesis}}
+\end{center}
+\vspace{0.3cm}
+\begin{center}
+  \Date
+\end{center}
+\HRule \\[0.4cm]
+{ \textbf{Departments}: Computer Systems and Languages, Computational Architectures and Technologies, Computational Science and Artificial Intelligence, Basque Language and Communication, Communications Engineer. }\\[0.4cm]
+ \HRule \\[1.5cm]
+
+\end{titlepage}
+\renewcommand{\thepage}{\roman{page}}
+\cleardoublepage
+\newpage
+\begin{center}
+  \vspace*{\fill}
+  \begin{minipage}{1.0\textwidth}
+    \begin{center}
+     \textbf{Laburpena}\\
+     \AbstractEusk
+    \end{center}
+    \begin{center}
+     \textbf{Abstract}\\
+     \AbstractEng
+    \end{center}
+  \end{minipage}
+  \vspace*{\fill}
+\end{center}
+\cleardoublepage
+\tableofcontents
+\cleardoublepage
+\listoffigures
+\cleardoublepage
+\listoftables
+\cleardoublepage
+\setcounter{page}{1}
+\renewcommand{\thepage}{\arabic{page}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

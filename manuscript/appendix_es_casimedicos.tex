@@ -1,0 +1,109 @@
+\begin{landscape}
+\begin{footnotesize}
+\setlength{\LTcapwidth}{\linewidth}
+\begin{longtable}{l l l l l r r r r r r r r r r r r}
+\caption{Spanish CasiMedicos dev ablation results (overall section)} \label{tab:es-casi} \\
+\toprule
+\# & Model & Experiment & Think & SF & Token\_prec & Token\_rec & token F1 & ROUGE-L & Cosim & BERTScore & answer-context F1 & gold-context F1 & sec & inp.tok & out.tok & tot.tok \\
+\midrule
+\endfirsthead
+\multicolumn{17}{l}{\tablename\ \thetable{} -- continued} \\
+\toprule
+\# & Model & Experiment & Think & SF & Token\_prec & Token\_rec & token F1 & ROUGE-L & Cosim & BERTScore & answer-context F1 & gold-context F1 & sec & inp.tok & out.tok & tot.tok \\
+\midrule
+\endhead
+\midrule
+\multicolumn{17}{r}{Continued on next page} \\
+\endfoot
+\bottomrule
+\endlastfoot
+0a & Mistral-7B-Instruct & Baseline LLM only & no\_think & noSF & 40.10 & 44.15 & 38.52 & 31.89 & 90.10 & 76.84 & --- & --- & 4.86 & 416.49 & 209.27 & 625.76 \\
+ & Mistral-7B-Instruct & Baseline LLM only & no\_think & SF & 41.80 & 42.51 & 39.01 & 32.56 & 90.24 & 77.09 & --- & --- & 8.83 & 1119.25 & 168.85 & 1288.11 \\
+ & Mistral-7B-Instruct & Baseline LLM only & no\_think & $\Delta$ & 1.70 & -1.64 & 0.49 & 0.67 & 0.14 & 0.25 & --- & --- & 3.97 & 702.76 & -40.42 & 662.35 \\
+0b & Qwen3-8B & Baseline LLM only & no\_think & noSF & 30.54 & 43.64 & 33.65 & 27.24 & 87.98 & 73.45 & --- & --- & 5.79 & 349.65 & 219.20 & 568.85 \\
+ & Qwen3-8B & Baseline LLM only & no\_think & SF & 31.76 & 40.64 & 33.10 & 27.36 & 88.04 & 73.41 & --- & --- & 10.30 & 974.05 & 170.05 & 1144.11 \\
+ & Qwen3-8B & Baseline LLM only & think & noSF & 24.93 & 36.86 & 26.41 & 21.78 & 86.12 & 64.97 & --- & --- & 20.75 & 345.65 & 332.25 & 677.91 \\
+ & Qwen3-8B & Baseline LLM only & think & SF & 26.41 & 31.23 & 24.95 & 20.84 & 85.72 & 62.78 & --- & --- & 34.20 & 1079.33 & 203.69 & 1283.02 \\
+\midrule
+1a & Mistral-7B-Instruct & e5 top 1 & no\_think & noSF & 44.56 & 41.21 & 39.21 & 33.36 & 90.31 & 76.72 & 17.13 & 13.67 & 4.48 & 784.89 & 189.51 & 974.40 \\
+ & Mistral-7B-Instruct & e5 top 1 & no\_think & SF & 43.56 & 38.10 & 36.77 & 31.15 & 89.78 & 76.57 & 13.96 & 13.67 & 7.48 & 1839.27 & 125.24 & 1964.51 \\
+ & Mistral-7B-Instruct & e5 top 1 & no\_think & $\Delta$ & -1.00 & -3.12 & -2.44 & -2.21 & -0.53 & -0.15 & -3.16 & 0.00 & 3.00 & 1054.38 & -64.27 & 990.11 \\
+1b & Qwen3-8B & e5 top 1 & no\_think & noSF & 55.68 & 47.75 & 48.38 & 44.30 & 91.63 & 80.47 & 16.55 & 13.67 & 2.74 & 667.16 & 100.95 & 768.11 \\
+ & Qwen3-8B & e5 top 1 & no\_think & SF & 56.48 & 47.68 & 48.52 & 44.53 & 91.76 & 80.72 & 15.10 & 13.67 & 5.42 & 1494.84 & 98.25 & 1593.09 \\
+ & Qwen3-8B & e5 top 1 & think & noSF & 51.09 & 50.41 & 46.29 & 42.17 & 90.88 & 74.62 & 14.29 & 13.67 & 17.35 & 663.16 & 206.24 & 869.40 \\
+ & Qwen3-8B & e5 top 1 & think & SF & 51.14 & 48.47 & 44.88 & 40.94 & 90.82 & 74.00 & 11.58 & 13.67 & 28.84 & 1592.25 & 146.69 & 1738.95 \\
+\midrule
+2a & Mistral-7B-Instruct & e5 top 3 & no\_think & noSF & 50.80 & 48.33 & 46.56 & 40.39 & 91.69 & 79.51 & 8.97 & 8.27 & 4.28 & 1568.53 & 175.67 & 1744.20 \\
+ & Mistral-7B-Instruct & e5 top 3 & no\_think & SF & 50.75 & 47.41 & 45.88 & 40.10 & 91.35 & 79.19 & 7.91 & 8.27 & 8.04 & 3392.73 & 152.44 & 3545.16 \\
+ & Mistral-7B-Instruct & e5 top 3 & no\_think & $\Delta$ & -0.06 & -0.92 & -0.68 & -0.29 & -0.33 & -0.32 & -1.06 & 0.00 & 3.76 & 1824.20 & -23.24 & 1800.96 \\
+2b & Qwen3-8B & e5 top 3 & no\_think & noSF & 57.37 & 50.38 & 51.09 & 45.86 & 92.21 & 81.32 & 6.35 & 8.27 & 2.86 & 1342.22 & 102.11 & 1444.33 \\
+ & Qwen3-8B & e5 top 3 & no\_think & SF & 57.34 & 50.23 & 50.99 & 45.86 & 92.22 & 81.22 & 6.11 & 8.27 & 5.72 & 2846.13 & 101.04 & 2947.16 \\
+ & Qwen3-8B & e5 top 3 & think & noSF & 53.65 & 49.86 & 48.89 & 44.48 & 91.39 & 75.48 & 6.11 & 8.27 & 17.14 & 1338.22 & 223.84 & 1562.05 \\
+ & Qwen3-8B & e5 top 3 & think & SF & 44.44 & 43.96 & 38.24 & 34.78 & 88.64 & 66.01 & 4.75 & 8.27 & 29.70 & 2959.96 & 177.29 & 3137.25 \\
+\midrule
+3a & Mistral-7B-Instruct & e5 top 5 & no\_think & noSF & 50.12 & 47.05 & 45.44 & 39.62 & 91.46 & 79.00 & 5.76 & 5.92 & 4.18 & 2310.27 & 166.71 & 2476.98 \\
+ & Mistral-7B-Instruct & e5 top 5 & no\_think & SF & 50.89 & 45.84 & 44.90 & 39.42 & 91.32 & 79.36 & 4.74 & 5.92 & 7.72 & 4867.25 & 138.96 & 5006.22 \\
+ & Mistral-7B-Instruct & e5 top 5 & no\_think & $\Delta$ & 0.77 & -1.21 & -0.54 & -0.19 & -0.14 & 0.37 & -1.02 & 0.00 & 3.54 & 2556.98 & -27.75 & 2529.24 \\
+3b & Qwen3-8B & e5 top 5 & no\_think & noSF & 57.79 & 51.01 & 51.45 & 46.41 & 92.47 & 81.59 & 4.47 & 5.92 & 3.05 & 1981.40 & 106.33 & 2087.73 \\
+ & Qwen3-8B & e5 top 5 & no\_think & SF & 57.90 & 50.85 & 51.45 & 46.40 & 92.49 & 81.61 & 4.21 & 5.92 & 6.04 & 4128.69 & 102.56 & 4231.25 \\
+ & Qwen3-8B & e5 top 5 & think & noSF & 52.38 & 50.33 & 47.90 & 43.40 & 91.35 & 76.05 & 4.12 & 5.92 & 16.62 & 1977.40 & 226.49 & 2203.89 \\
+ & Qwen3-8B & e5 top 5 & think & SF & 36.73 & 41.37 & 32.84 & 29.97 & 87.49 & 61.14 & 3.34 & 5.92 & 29.40 & 4240.95 & 247.98 & 4488.93 \\
+\midrule
+4a & Mistral-7B-Instruct & rerank top 1 & no\_think & noSF & 41.55 & 41.64 & 37.33 & 31.59 & 89.98 & 76.80 & 13.65 & 12.07 & 4.92 & 727.09 & 189.96 & 917.05 \\
+ & Mistral-7B-Instruct & rerank top 1 & no\_think & SF & 43.04 & 39.16 & 37.35 & 31.99 & 89.89 & 77.16 & 12.38 & 12.07 & 8.11 & 1724.15 & 133.38 & 1857.53 \\
+ & Mistral-7B-Instruct & rerank top 1 & no\_think & $\Delta$ & 1.49 & -2.49 & 0.02 & 0.41 & -0.09 & 0.37 & -1.27 & 0.00 & 3.19 & 997.05 & -56.58 & 940.47 \\
+4b & Qwen3-8B & rerank top 1 & no\_think & noSF & 55.93 & 47.89 & 48.46 & 44.83 & 90.97 & 80.06 & 12.01 & 12.07 & 2.84 & 616.80 & 92.64 & 709.44 \\
+ & Qwen3-8B & rerank top 1 & no\_think & SF & 58.71 & 49.30 & 50.34 & 46.84 & 91.46 & 80.91 & 11.56 & 12.07 & 5.34 & 1385.84 & 89.76 & 1475.60 \\
+ & Qwen3-8B & rerank top 1 & think & noSF & 51.28 & 50.58 & 46.64 & 42.87 & 90.81 & 75.91 & 11.22 & 12.07 & 17.30 & 612.80 & 186.24 & 799.04 \\
+ & Qwen3-8B & rerank top 1 & think & SF & 43.63 & 42.94 & 38.94 & 35.68 & 88.91 & 68.18 & 8.07 & 12.07 & 28.52 & 1471.55 & 180.82 & 1652.36 \\
+\midrule
+5a & Mistral-7B-Instruct & rerank top 3 & no\_think & noSF & 48.47 & 47.33 & 44.15 & 38.75 & 91.07 & 78.82 & 7.53 & 8.19 & 4.16 & 1432.44 & 153.13 & 1585.56 \\
+ & Mistral-7B-Instruct & rerank top 3 & no\_think & SF & 48.39 & 45.86 & 43.10 & 37.89 & 90.83 & 78.56 & 7.04 & 8.19 & 7.73 & 3098.00 & 146.25 & 3244.25 \\
+ & Mistral-7B-Instruct & rerank top 3 & no\_think & $\Delta$ & -0.08 & -1.47 & -1.05 & -0.86 & -0.25 & -0.26 & -0.49 & 0.00 & 3.57 & 1665.56 & -6.87 & 1658.69 \\
+5b & Qwen3-8B & rerank top 3 & no\_think & noSF & 57.44 & 49.28 & 50.09 & 45.49 & 91.82 & 80.72 & 5.63 & 8.19 & 2.97 & 1223.36 & 94.89 & 1318.25 \\
+ & Qwen3-8B & rerank top 3 & no\_think & SF & 57.24 & 49.58 & 50.13 & 45.47 & 91.79 & 80.71 & 5.68 & 8.19 & 5.68 & 2601.22 & 96.60 & 2697.82 \\
+ & Qwen3-8B & rerank top 3 & think & noSF & 51.31 & 50.89 & 47.03 & 42.81 & 90.98 & 74.24 & 5.57 & 8.19 & 18.41 & 1219.36 & 258.95 & 1478.31 \\
+ & Qwen3-8B & rerank top 3 & think & SF & 41.71 & 42.32 & 36.82 & 33.44 & 88.22 & 63.85 & 4.16 & 8.19 & 30.83 & 2757.38 & 227.67 & 2985.05 \\
+\midrule
+6a & Mistral-7B-Instruct & rerank top 5 & no\_think & noSF & 48.46 & 46.38 & 44.18 & 38.01 & 91.04 & 77.80 & 5.63 & 5.82 & 4.59 & 2246.71 & 165.58 & 2412.29 \\
+ & Mistral-7B-Instruct & rerank top 5 & no\_think & SF & 50.72 & 47.68 & 46.00 & 39.95 & 91.41 & 79.77 & 5.25 & 5.82 & 8.55 & 4739.00 & 156.85 & 4895.85 \\
+ & Mistral-7B-Instruct & rerank top 5 & no\_think & $\Delta$ & 2.26 & 1.30 & 1.82 & 1.95 & 0.37 & 1.97 & -0.38 & 0.00 & 3.97 & 2492.29 & -8.73 & 2483.56 \\
+6b & Qwen3-8B & rerank top 5 & no\_think & noSF & 57.14 & 50.86 & 51.35 & 46.22 & 92.40 & 81.26 & 4.92 & 5.82 & 3.65 & 1926.71 & 117.22 & 2043.93 \\
+ & Qwen3-8B & rerank top 5 & no\_think & SF & 57.30 & 50.42 & 51.00 & 46.09 & 92.34 & 81.26 & 4.45 & 5.82 & 6.72 & 4030.18 & 107.38 & 4137.56 \\
+ & Qwen3-8B & rerank top 5 & think & noSF & 53.08 & 50.12 & 48.20 & 43.74 & 91.52 & 76.60 & 3.95 & 5.82 & 17.11 & 1922.71 & 205.96 & 2128.67 \\
+ & Qwen3-8B & rerank top 5 & think & SF & 44.29 & 43.85 & 39.35 & 35.96 & 89.10 & 66.88 & 3.19 & 5.82 & 29.84 & 4111.07 & 215.45 & 4326.53 \\
+\midrule
+7a & Mistral-7B-Instruct & 3-shot, no RAG & no\_think & noSF & 43.86 & 43.61 & 40.50 & 34.12 & 90.46 & 77.89 & --- & --- & 4.30 & 1797.16 & 176.25 & 1973.42 \\
+ & Mistral-7B-Instruct & 3-shot, no RAG & no\_think & SF & 44.01 & 42.91 & 40.52 & 34.04 & 90.60 & 78.03 & --- & --- & 8.06 & 2466.91 & 160.29 & 2627.20 \\
+ & Mistral-7B-Instruct & 3-shot, no RAG & no\_think & $\Delta$ & 0.15 & -0.70 & 0.02 & -0.09 & 0.13 & 0.14 & --- & --- & 3.76 & 669.75 & -15.96 & 653.78 \\
+7b & Qwen3-8B & 3-shot, no RAG & no\_think & noSF & 52.11 & 57.02 & 51.93 & 45.14 & 92.47 & 81.50 & --- & --- & 5.47 & 1528.27 & 200.00 & 1728.27 \\
+ & Qwen3-8B & 3-shot, no RAG & no\_think & SF & 50.54 & 52.64 & 49.21 & 42.89 & 91.91 & 80.46 & --- & --- & 9.84 & 2133.47 & 164.20 & 2297.67 \\
+ & Qwen3-8B & 3-shot, no RAG & think & noSF & 50.55 & 52.40 & 48.47 & 43.63 & 91.32 & 75.29 & --- & --- & 20.20 & 1524.27 & 252.09 & 1776.36 \\
+ & Qwen3-8B & 3-shot, no RAG & think & SF & 36.07 & 36.76 & 32.62 & 29.62 & 86.94 & 61.53 & --- & --- & 33.51 & 2177.78 & 204.20 & 2381.98 \\
+\midrule
+8a & Mistral-7B-Instruct & 3-shot + rerank top 5 & no\_think & noSF & 51.75 & 48.87 & 47.39 & 41.17 & 91.79 & 80.20 & 5.55 & 5.82 & 4.87 & 3627.38 & 167.40 & 3794.78 \\
+\rowcolor{tabhighlight} & Mistral-7B-Instruct & 3-shot + rerank top 5 & no\_think & SF & 53.21 & 49.44 & 48.59 & 42.39 & 91.85 & 80.66 & 5.12 & 5.82 & 8.79 & 6121.49 & 154.76 & 6276.25 \\
+ & Mistral-7B-Instruct & 3-shot + rerank top 5 & no\_think & $\Delta$ & 1.46 & 0.57 & 1.21 & 1.21 & 0.07 & 0.46 & -0.43 & 0.00 & 3.92 & 2494.11 & -12.64 & 2481.47 \\
+\rowcolor{tabhighlight}\textrightarrow{} 8b & Qwen3-8B & 3-shot + rerank top 5 & no\_think & noSF & 57.47 & 52.94 & 52.80 & 47.15 & 92.59 & 81.63 & 4.90 & 5.82 & 4.07 & 3105.33 & 125.82 & 3231.15 \\
+ & Qwen3-8B & 3-shot + rerank top 5 & no\_think & SF & 57.30 & 52.25 & 52.27 & 46.95 & 92.51 & 81.58 & 4.57 & 5.82 & 7.51 & 5217.40 & 115.78 & 5333.18 \\
+ & Qwen3-8B & 3-shot + rerank top 5 & think & noSF & 57.16 & 52.18 & 51.83 & 46.75 & 92.27 & 79.67 & 4.21 & 5.82 & 17.85 & 3101.33 & 161.47 & 3262.80 \\
+ & Qwen3-8B & 3-shot + rerank top 5 & think & SF & 43.30 & 41.41 & 39.08 & 35.66 & 88.77 & 65.76 & 3.02 & 5.82 & 30.76 & 5245.18 & 209.31 & 5454.49 \\
+\midrule
+9a & Mistral-7B-Instruct & cross-domain retrieval & no\_think & noSF & 40.92 & 43.97 & 38.94 & 33.72 & 89.97 & 76.27 & 2.05 & 2.56 & 6.45 & 5025.62 & 217.47 & 5243.09 \\
+ & Mistral-7B-Instruct & cross-domain retrieval & no\_think & SF & 40.72 & 41.04 & 37.10 & 31.67 & 89.50 & 76.52 & 1.79 & 2.56 & 10.69 & 10348.71 & 149.58 & 10498.29 \\
+ & Mistral-7B-Instruct & cross-domain retrieval & no\_think & $\Delta$ & -0.19 & -2.93 & -1.84 & -2.05 & -0.47 & 0.25 & -0.26 & 0.00 & 4.24 & 5323.09 & -67.89 & 5255.20 \\
+9b & Qwen3-8B & cross-domain retrieval & no\_think & noSF & 35.53 & 31.28 & 29.33 & 27.08 & 85.19 & 70.59 & 0.89 & 2.56 & 2.52 & 4351.38 & 60.76 & 4412.15 \\
+ & Qwen3-8B & cross-domain retrieval & no\_think & SF & 45.56 & 41.35 & 38.49 & 35.51 & 87.84 & 75.39 & 1.11 & 2.56 & 5.28 & 8823.11 & 81.27 & 8904.38 \\
+ & Qwen3-8B & cross-domain retrieval & think & noSF & 40.19 & 47.23 & 38.62 & 34.46 & 88.84 & 69.92 & 1.60 & 2.56 & 21.62 & 4347.38 & 290.44 & 4637.82 \\
+ & Qwen3-8B & cross-domain retrieval & think & SF & 29.71 & 35.40 & 27.28 & 24.70 & 85.38 & 58.56 & 1.10 & 2.56 & 35.33 & 9044.96 & 245.53 & 9290.49 \\
+\midrule
+10a & Mistral-7B-Instruct & mixed-domain retrieval & no\_think & noSF & 48.46 & 46.38 & 44.18 & 38.01 & 91.04 & 77.80 & 5.63 & 5.82 & 4.66 & 2246.71 & 165.58 & 2412.29 \\
+ & Mistral-7B-Instruct & mixed-domain retrieval & no\_think & SF & 50.72 & 47.68 & 46.00 & 39.95 & 91.41 & 79.77 & 5.25 & 5.82 & 8.63 & 4739.00 & 156.85 & 4895.85 \\
+ & Mistral-7B-Instruct & mixed-domain retrieval & no\_think & $\Delta$ & 2.26 & 1.30 & 1.82 & 1.95 & 0.37 & 1.97 & -0.38 & 0.00 & 3.97 & 2492.29 & -8.73 & 2483.56 \\
+10b & Qwen3-8B & mixed-domain retrieval & no\_think & noSF & 57.14 & 50.86 & 51.35 & 46.22 & 92.40 & 81.26 & 4.92 & 5.82 & 3.71 & 1926.71 & 117.22 & 2043.93 \\
+ & Qwen3-8B & mixed-domain retrieval & no\_think & SF & 57.30 & 50.42 & 51.00 & 46.09 & 92.34 & 81.26 & 4.45 & 5.82 & 6.97 & 4030.18 & 107.38 & 4137.56 \\
+ & Qwen3-8B & mixed-domain retrieval & think & noSF & 53.08 & 50.12 & 48.20 & 43.74 & 91.52 & 76.60 & 3.95 & 5.82 & 17.17 & 1922.71 & 205.96 & 2128.67 \\
+ & Qwen3-8B & mixed-domain retrieval & think & SF & 44.29 & 43.85 & 39.35 & 35.96 & 89.10 & 66.88 & 3.19 & 5.82 & 29.91 & 4111.07 & 215.45 & 4326.53 \\
+\end{longtable}
+\end{footnotesize}
+\end{landscape}

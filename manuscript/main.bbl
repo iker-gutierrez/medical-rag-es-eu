@@ -1,0 +1,62 @@
+\begin{thebibliography}{9}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[{Geek Software GmbH}(2026)]{pdf24}
+{Geek Software GmbH}.
+\newblock {PDF24 Tools}, 2026.
+\newblock URL \url{https://tools.pdf24.org/en/pdf-to-txt#s=1773652138058}.
+\newblock [Online tool for PDF conversion and processing].
+
+\bibitem[{GuíaSalud}(2026)]{guiasalud}
+{GuíaSalud}.
+\newblock {Portal GuíaSalud: Catálogo de Guías de Práctica Clínica en el Sistema Nacional de Salud (SNS)}, 2026.
+\newblock URL \url{https://portal.guiasalud.es/gpc/}.
+\newblock Accessed: 2026-04-23.
+
+\bibitem[{Ministerio de Sanidad}(2024{\natexlab{a}})]{ansiedad}
+{Ministerio de Sanidad}.
+\newblock {Guía de Práctica Clínica para el Tratamiento del Trastorno de Ansiedad Generalizada en Atención Primaria}, 2024{\natexlab{a}}.
+\newblock URL \url{https://doi.org/10.46995/gpc_641}.
+\newblock {Grupo de trabajo de la Guía de Práctica Clínica para el Tratamiento del Trastorno de Ansiedad Generalizada en Atención Primaria. Servicio de Evaluación del Servicio Canario de la Salud. Guías de Práctica Clínica en el SNS}.
+
+\bibitem[{Ministerio de Sanidad}(2026)]{diabetes}
+{Ministerio de Sanidad}.
+\newblock {Guía de Práctica Clínica sobre Diabetes Mellitus Tipo 1}, 2026.
+\newblock URL \url{https://doi.org/10.46995/gpc_659}.
+\newblock {Grupo de trabajo de la Guía de Práctica Clínica sobre Diabetes Mellitus Tipo 1. Servicio de Evaluación del Servicio Canario de Salud. Guías de Práctica Clínica en el SNS}.
+
+\bibitem[{Ministerio de Sanidad}(2024{\natexlab{b}})]{ictus}
+{Ministerio de Sanidad}.
+\newblock {Guía de Práctica Clínica sobre el Manejo del Ictus en Atención Primaria}, 2024{\natexlab{b}}.
+\newblock URL \url{https://doi.org/10.46995/gpc_635}.
+\newblock {Grupo de trabajo de la Guía de Práctica Clínica sobre el Manejo del Ictus en Atención Primaria. Osteba/BIOEF. Guías de Práctica Clínica en el SNS}.
+
+\bibitem[{Ministerio de Sanidad}(2021)]{paliativos}
+{Ministerio de Sanidad}.
+\newblock {Guía de Práctica Clínica sobre atención paliativa al adulto en situación de últimos días}, 2021.
+\newblock URL \url{https://doi.org/10.46995/gpc_612}.
+\newblock {Grupo de trabajo de la Guía de Práctica Clínica sobre atención paliativa al adulto en situación de últimos días. Agencia de Conocimiento en Salud (ACIS). Unidad de Asesoramiento Científico-técnico, Avalia-t. Guías de Práctica Clínica en el SNS}.
+
+\bibitem[{Ministerio de Sanidad}(2022)]{paliativos_pediatria}
+{Ministerio de Sanidad}.
+\newblock {Guía de Práctica Clínica sobre Cuidados Paliativos en Pediatría}, 2022.
+\newblock URL \url{https://doi.org/10.46995/gpc_618}.
+\newblock {Grupo de trabajo de la Guía de Práctica Clínica sobre Cuidados Paliativos en Pediatría. Instituto Aragonés de Ciencias de la Salud. Guías de Práctica Clínica en el SNS}.
+
+\bibitem[{Ministerio de Sanidad}(2023)]{prevencion_ictus}
+{Ministerio de Sanidad}.
+\newblock {Guía de Práctica Clínica sobre prevención secundaria de ictus. Actualización}, 2023.
+\newblock URL \url{https://doi.org/10.46995/gpc_625}.
+\newblock {Grupo de trabajo de la Guía de Práctica Clínica sobre prevención secundaria de ictus. Actualización. AETSA-Evaluación de Tecnologías Sanitarias de Andalucía. Guías de Práctica Clínica en el SNS}.
+
+\bibitem[Sviridova et~al.(2024)Sviridova, Yeginbergen, Estarrona, Cabrio, Villata, and Agerri]{sviridova-etal-2024-casimedicos}
+Ekaterina Sviridova, Anar Yeginbergen, Ainara Estarrona, Elena Cabrio, Serena Villata, and Rodrigo Agerri.
+\newblock {C}asi{M}edicos-arg: A medical question answering dataset annotated with explanatory argumentative structures.
+\newblock In \emph{Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing}, pages 18463--18475, Miami, Florida, USA, November 2024. Association for Computational Linguistics.
+\newblock \doi{10.18653/v1/2024.emnlp-main.1026}.
+
+\end{thebibliography}
