@@ -29,6 +29,9 @@ reports/metrics/*
 !reports/figures/.gitkeep
 !reports/metrics/.gitkeep
 
+# SNS-1064 paper (dataset not included)
+SNS_1064/
+
 # Local machine state
 .env
 .cache/
