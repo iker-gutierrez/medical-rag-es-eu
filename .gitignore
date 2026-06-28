@@ -28,6 +28,8 @@ reports/metrics/*
 !models/.gitkeep
 !reports/figures/.gitkeep
 !reports/metrics/.gitkeep
+!reports/metrics/es_dev_ablation_results.md
+!reports/metrics/eu_dev_ablation_results.md
 
 # SNS-1064 paper (dataset not included)
 SNS_1064/

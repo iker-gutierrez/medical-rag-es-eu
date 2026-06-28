@@ -28,9 +28,9 @@ The system is evaluated on two tasks: open-answer clinical QA (SNS-1064) and mul
 
 - [Meeting 2 notes (2026-06-29)](docs/supervisor_meeting2_notes.md)
 - [Meeting 1 notes (2026-06-15)](docs/supervisor_meeting_notes.md)
-- Spanish dev ablation results: `reports/metrics/es_dev_ablation_results.md` (local only)
-- Basque dev ablation results: `reports/metrics/eu_dev_ablation_results.md` (local only)
-- Thesis manuscript: `manuscript/main.pdf` (local only)
+- [Spanish dev ablation results](reports/metrics/es_dev_ablation_results.md)
+- [Basque dev ablation results](reports/metrics/eu_dev_ablation_results.md)
+- Thesis manuscript: `manuscript/main.pdf` (available in Prism)
 
 ## Key results
 
