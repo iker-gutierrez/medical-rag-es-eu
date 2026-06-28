@@ -9,7 +9,7 @@ The system is evaluated on two tasks: open-answer clinical QA (SNS-1064) and mul
 - **Basque dev ablations**: complete. Models: Llama-3.1-8B-Instruct, Latxa-Llama-3.1-8B-Instruct. Datasets: SNS-1064 EU, CasiMédicos-Arg EU, Mixed EU.
 - **Qwen3.5-4B vs 9B comparison**: complete on Spanish dev.
 - **Test set evaluation**: pending supervisor approval.
-- **Thesis manuscript**: draft available at `manuscript/main.pdf`.
+- **Thesis manuscript**: draft available locally at `manuscript/main.pdf` (gitignored).
 
 ## Repository layout
 
@@ -21,17 +21,16 @@ The system is evaluated on two tasks: open-answer clinical QA (SNS-1064) and mul
 - `slurm/`: Slurm job scripts for the AZTI server.
 - `experiments/runs/`: generated predictions and run artifacts.
 - `reports/metrics/`: ablation result tables and summaries.
-- `manuscript/`: LaTeX thesis draft (`main.tex`, `main.pdf`).
+- `manuscript/`: LaTeX thesis draft (`main.tex`, `main.pdf`) — gitignored, local only.
 - `docs/`: supervisor meeting notes, reading list, bibliography notes.
 
 ## Supervisor meeting materials
 
 - [Meeting 2 notes (2026-06-29)](docs/supervisor_meeting2_notes.md)
 - [Meeting 1 notes (2026-06-15)](docs/supervisor_meeting_notes.md)
-- [Spanish dev ablation results](reports/metrics/es_dev_ablation_results.md)
-- [Basque dev ablation results](reports/metrics/eu_dev_ablation_results.md)
-- [Thesis manuscript (PDF)](manuscript/main.pdf)
-- [Reading list](docs/reading_list.md)
+- Spanish dev ablation results: `reports/metrics/es_dev_ablation_results.md` (local only)
+- Basque dev ablation results: `reports/metrics/eu_dev_ablation_results.md` (local only)
+- Thesis manuscript: `manuscript/main.pdf` (local only)
 
 ## Key results
 
