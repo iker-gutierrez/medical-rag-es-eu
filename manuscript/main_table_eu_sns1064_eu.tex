@@ -1,14 +1,19 @@
-\begin{footnotesize}
+\begin{scriptsize}
+\setlength{\tabcolsep}{3pt}
 \setlength{\LTcapwidth}{\linewidth}
-\begin{longtable}{l l l l r r r r r}
-\caption{Basque SNS1064 EU dev ablation (106 examples, open-answer). Same metrics as Table\textasciitilde{}\ref{tab:es-main-sns}.} \label{tab:eu-main-sns} \\
+\begin{longtable}{l l l l c c c c c}
+\caption[Basque SNS-1064 dev ablation]{Basque SNS1064 EU dev ablation (106 examples, open-answer). Same metrics as \autoref{tab:es-main-sns}.} \label{tab:eu-main-sns} \\
 \toprule
-\# & Model & Experiment & SF & \multicolumn{1}{r}{ROUGE-L} & \multicolumn{1}{r}{Cosim} & \multicolumn{1}{r}{BERT-F1} & \multicolumn{1}{r}{sec} & \multicolumn{1}{r}{tok} \\
+\# & Model & Experiment & SF & \multicolumn{3}{c}{Quality $\uparrow$} & \multicolumn{2}{c}{Cost $\downarrow$} \\
+\cmidrule(lr){5-7}\cmidrule(lr){8-9}
+\multicolumn{1}{l}{} & \multicolumn{1}{l}{} & \multicolumn{1}{l}{} & \multicolumn{1}{l}{} & \multicolumn{1}{c}{ROUGE-L} & \multicolumn{1}{c}{Cosim} & \multicolumn{1}{c}{BERT-F1} & \multicolumn{1}{c}{sec} & \multicolumn{1}{c}{tok} \\
 \midrule
 \endfirsthead
-\multicolumn{9}{l}{\tablename\ \thetable{} -- continued} \\
+\multicolumn{9}{l}{\tablename\ \thetable{} (continued)} \\
 \toprule
-\# & Model & Experiment & SF & \multicolumn{1}{r}{ROUGE-L} & \multicolumn{1}{r}{Cosim} & \multicolumn{1}{r}{BERT-F1} & \multicolumn{1}{r}{sec} & \multicolumn{1}{r}{tok} \\
+\# & Model & Experiment & SF & \multicolumn{3}{c}{Quality $\uparrow$} & \multicolumn{2}{c}{Cost $\downarrow$} \\
+\cmidrule(lr){5-7}\cmidrule(lr){8-9}
+\multicolumn{1}{l}{} & \multicolumn{1}{l}{} & \multicolumn{1}{l}{} & \multicolumn{1}{l}{} & \multicolumn{1}{c}{ROUGE-L} & \multicolumn{1}{c}{Cosim} & \multicolumn{1}{c}{BERT-F1} & \multicolumn{1}{c}{sec} & \multicolumn{1}{c}{tok} \\
 \midrule
 \endhead
 \midrule
@@ -22,70 +27,70 @@
 0b & Latxa-Llama-3.1-8B-Instruct & Baseline LLM only & noSF & 5.66 & 80.75 & 62.66 & 6.05 & 506 \\
  & Latxa-Llama-3.1-8B-Instruct & Baseline LLM only & SF & 5.41 & 80.66 & 62.61 & 11.85 & 1078 \\
  & Latxa-Llama-3.1-8B-Instruct & Baseline LLM only & $\Delta$ & -0.25 & -0.09 & -0.04 & 5.80 & 572 \\
-\midrule
+\dmidrule
 1a & Llama-3.1-8B-Instruct & e5 top 1 & noSF & 16.89 & 85.03 & 70.42 & 3.43 & 589 \\
  & Llama-3.1-8B-Instruct & e5 top 1 & SF & 14.50 & 84.56 & 69.29 & 7.14 & 1268 \\
  & Llama-3.1-8B-Instruct & e5 top 1 & $\Delta$ & -2.39 & -0.47 & -1.14 & 3.71 & 679 \\
 1b & Latxa-Llama-3.1-8B-Instruct & e5 top 1 & noSF & 21.23 & 86.31 & 72.49 & 2.43 & 548 \\
  & Latxa-Llama-3.1-8B-Instruct & e5 top 1 & SF & 17.89 & 85.39 & 70.90 & 5.98 & 1221 \\
  & Latxa-Llama-3.1-8B-Instruct & e5 top 1 & $\Delta$ & -3.34 & -0.93 & -1.60 & 3.55 & 673 \\
-\midrule
+\dmidrule
 2a & Llama-3.1-8B-Instruct & e5 top 3 & noSF & 24.25 & 86.85 & 73.65 & 2.82 & 938 \\
  & Llama-3.1-8B-Instruct & e5 top 3 & SF & 19.29 & 85.68 & 71.33 & 6.08 & 1972 \\
  & Llama-3.1-8B-Instruct & e5 top 3 & $\Delta$ & -4.96 & -1.18 & -2.33 & 3.26 & 1034 \\
 2b & Latxa-Llama-3.1-8B-Instruct & e5 top 3 & noSF & 25.22 & 86.77 & 73.30 & 2.41 & 921 \\
  & Latxa-Llama-3.1-8B-Instruct & e5 top 3 & SF & 25.99 & 86.90 & 73.69 & 5.33 & 1941 \\
  & Latxa-Llama-3.1-8B-Instruct & e5 top 3 & $\Delta$ & 0.78 & 0.13 & 0.38 & 2.92 & 1020 \\
-\midrule
+\dmidrule
 3a & Llama-3.1-8B-Instruct & e5 top 5 & noSF & 29.39 & 87.53 & 75.13 & 2.40 & 1344 \\
  & Llama-3.1-8B-Instruct & e5 top 5 & SF & 24.89 & 86.69 & 73.15 & 5.44 & 2794 \\
  & Llama-3.1-8B-Instruct & e5 top 5 & $\Delta$ & -4.50 & -0.85 & -1.98 & 3.04 & 1449 \\
 3b & Latxa-Llama-3.1-8B-Instruct & e5 top 5 & noSF & 33.61 & 88.67 & 76.35 & 2.63 & 1353 \\
  & Latxa-Llama-3.1-8B-Instruct & e5 top 5 & SF & 30.80 & 88.07 & 75.65 & 5.07 & 2778 \\
  & Latxa-Llama-3.1-8B-Instruct & e5 top 5 & $\Delta$ & -2.80 & -0.59 & -0.70 & 2.44 & 1425 \\
-\midrule
+\dmidrule
 4a & Llama-3.1-8B-Instruct & rerank top 1 & noSF & 19.65 & 85.77 & 71.42 & 4.14 & 656 \\
  & Llama-3.1-8B-Instruct & rerank top 1 & SF & 15.20 & 84.64 & 69.25 & 8.58 & 1414 \\
  & Llama-3.1-8B-Instruct & rerank top 1 & $\Delta$ & -4.45 & -1.13 & -2.17 & 4.44 & 758 \\
 4b & Latxa-Llama-3.1-8B-Instruct & rerank top 1 & noSF & 22.55 & 86.73 & 72.55 & 3.52 & 630 \\
  & Latxa-Llama-3.1-8B-Instruct & rerank top 1 & SF & 22.06 & 86.51 & 72.59 & 7.34 & 1362 \\
  & Latxa-Llama-3.1-8B-Instruct & rerank top 1 & $\Delta$ & -0.49 & -0.22 & 0.04 & 3.82 & 732 \\
-\midrule
+\dmidrule
 5a & Llama-3.1-8B-Instruct & rerank top 3 & noSF & 28.59 & 87.71 & 74.70 & 3.85 & 1092 \\
  & Llama-3.1-8B-Instruct & rerank top 3 & SF & 24.06 & 86.67 & 72.85 & 7.78 & 2276 \\
  & Llama-3.1-8B-Instruct & rerank top 3 & $\Delta$ & -4.53 & -1.04 & -1.86 & 3.93 & 1184 \\
 5b & Latxa-Llama-3.1-8B-Instruct & rerank top 3 & noSF & 31.18 & 88.11 & 75.58 & 3.42 & 1074 \\
  & Latxa-Llama-3.1-8B-Instruct & rerank top 3 & SF & 30.22 & 87.95 & 75.33 & 6.67 & 2231 \\
  & Latxa-Llama-3.1-8B-Instruct & rerank top 3 & $\Delta$ & -0.96 & -0.16 & -0.26 & 3.25 & 1157 \\
-\midrule
+\dmidrule
 \rowcolor{tabhighlight}6a & Llama-3.1-8B-Instruct & rerank top 5 & noSF & 32.97 & 88.45 & 76.33 & 3.29 & 1498 \\
  & Llama-3.1-8B-Instruct & rerank top 5 & SF & 30.57 & 87.74 & 75.18 & 6.54 & 3083 \\
  & Llama-3.1-8B-Instruct & rerank top 5 & $\Delta$ & -2.40 & -0.71 & -1.14 & 3.24 & 1585 \\
 6b & Latxa-Llama-3.1-8B-Instruct & rerank top 5 & noSF & 34.14 & 88.75 & 76.50 & 3.22 & 1495 \\
  & Latxa-Llama-3.1-8B-Instruct & rerank top 5 & SF & 32.32 & 88.26 & 75.83 & 6.06 & 3063 \\
  & Latxa-Llama-3.1-8B-Instruct & rerank top 5 & $\Delta$ & -1.82 & -0.48 & -0.67 & 2.84 & 1568 \\
-\midrule
+\dmidrule
 7a & Llama-3.1-8B-Instruct & 3-shot, no RAG & noSF & 9.10 & 83.45 & 66.28 & 4.43 & 1120 \\
  & Llama-3.1-8B-Instruct & 3-shot, no RAG & SF & 5.94 & 81.43 & 62.96 & 10.12 & 1687 \\
  & Llama-3.1-8B-Instruct & 3-shot, no RAG & $\Delta$ & -3.16 & -2.02 & -3.31 & 5.69 & 568 \\
 7b & Latxa-Llama-3.1-8B-Instruct & 3-shot, no RAG & noSF & 10.45 & 83.78 & 66.66 & 3.69 & 1089 \\
  & Latxa-Llama-3.1-8B-Instruct & 3-shot, no RAG & SF & 7.12 & 82.12 & 65.15 & 8.01 & 1600 \\
  & Latxa-Llama-3.1-8B-Instruct & 3-shot, no RAG & $\Delta$ & -3.32 & -1.66 & -1.51 & 4.31 & 511 \\
-\midrule
+\dmidrule
 8a & Llama-3.1-8B-Instruct & 3-shot + rerank top 5 & noSF & 32.54 & 88.34 & 76.21 & 3.21 & 2176 \\
  & Llama-3.1-8B-Instruct & 3-shot + rerank top 5 & SF & 29.63 & 87.82 & 74.98 & 6.57 & 3766 \\
  & Llama-3.1-8B-Instruct & 3-shot + rerank top 5 & $\Delta$ & -2.92 & -0.52 & -1.24 & 3.36 & 1589 \\
 \rowcolor{tabhighlight}$\Rightarrow$~8b & Latxa-Llama-3.1-8B-Instruct & 3-shot + rerank top 5 & noSF & 35.76 & 89.01 & 77.56 & 3.20 & 2175 \\
  & Latxa-Llama-3.1-8B-Instruct & 3-shot + rerank top 5 & SF & 33.88 & 88.63 & 76.45 & 6.33 & 3755 \\
  & Latxa-Llama-3.1-8B-Instruct & 3-shot + rerank top 5 & $\Delta$ & -1.88 & -0.38 & -1.11 & 3.13 & 1580 \\
-\midrule
+\dmidrule
 9a & Llama-3.1-8B-Instruct & cross-domain retrieval & noSF & 6.75 & 81.46 & 60.81 & 5.49 & 2273 \\
  & Llama-3.1-8B-Instruct & cross-domain retrieval & SF & 6.77 & 81.58 & 63.36 & 10.51 & 4615 \\
  & Llama-3.1-8B-Instruct & cross-domain retrieval & $\Delta$ & 0.03 & 0.12 & 2.55 & 5.02 & 2342 \\
 9b & Latxa-Llama-3.1-8B-Instruct & cross-domain retrieval & noSF & 7.16 & 81.77 & 62.82 & 4.33 & 2225 \\
  & Latxa-Llama-3.1-8B-Instruct & cross-domain retrieval & SF & 5.16 & 81.09 & 59.78 & 9.44 & 4571 \\
  & Latxa-Llama-3.1-8B-Instruct & cross-domain retrieval & $\Delta$ & -2.01 & -0.68 & -3.04 & 5.11 & 2346 \\
-\midrule
+\dmidrule
 10a & Llama-3.1-8B-Instruct & mixed-domain retrieval & noSF & 32.97 & 88.45 & 76.33 & 3.31 & 1498 \\
  & Llama-3.1-8B-Instruct & mixed-domain retrieval & SF & 30.57 & 87.74 & 75.18 & 6.55 & 3083 \\
  & Llama-3.1-8B-Instruct & mixed-domain retrieval & $\Delta$ & -2.40 & -0.71 & -1.14 & 3.24 & 1585 \\
@@ -93,4 +98,4 @@
  & Latxa-Llama-3.1-8B-Instruct & mixed-domain retrieval & SF & 32.32 & 88.26 & 75.83 & 6.07 & 3063 \\
  & Latxa-Llama-3.1-8B-Instruct & mixed-domain retrieval & $\Delta$ & -1.82 & -0.48 & -0.67 & 2.84 & 1568 \\
 \end{longtable}
-\end{footnotesize}
+\end{scriptsize}

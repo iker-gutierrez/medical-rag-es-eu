@@ -5,8 +5,14 @@
 \usepackage{listings}
 \usepackage{url}
 \usepackage{amsmath}
+\usepackage{array}
 \usepackage{longtable}
 \usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{arydshln}
+\setlength{\dashlinedash}{2pt}
+\setlength{\dashlinegap}{3pt}
+\newcommand{\dmidrule}{\noalign{\vskip3pt}\hdashline\noalign{\vskip3pt}}
 \usepackage{pdflscape}
 \usepackage[table]{xcolor}
 \definecolor{tabhighlight}{HTML}{fff8c5}
@@ -19,6 +25,10 @@
 \usepackage{bm}
 \usepackage{tikz}
 \usepackage{float}
+\usepackage[colorlinks=true,linkcolor=darkblue,citecolor=darkblue,urlcolor=darkblue,linktoc=page]{hyperref}
+\definecolor{darkblue}{rgb}{0,0,0.5}
+% Use starred \pageref* so the page number header has no hyperlink
+\AtBeginDocument{\fancyhead[R]{\thepage/\pageref*{LastPage}}}
 \setlength{\headheight}{15.2pt}
 
 %% WARNING!: use 'pdflatex' command to compile this file.
@@ -103,6 +113,35 @@ BERTScore F1 with \texttt{bert-base-multilingual-cased} (contextualised token ma
 All scores are reported as percentages out of 100.
 
 %% ─────────────────────────────────────────────────────────────────────────────
+\section{Related work}
+\label{sec:related}
+
+\subsection{Retrieval-augmented generation}
+
+Retrieval-augmented generation (RAG) augments language models with external knowledge retrieved at inference time, following a ``retrieve-then-read'' paradigm \citep{liangEtAl2025}.
+Early systems relied on sparse retrievers such as BM25, which were later superseded by dense retrievers like DPR and domain-specific models such as MedCPT \citep{liangEtAl2025}.
+Advanced RAG systems extend this with multi-round structures including iterative, recursive, and adaptive retrieval.
+More recently, agentic RAG frameworks treat retrieval and chain-of-thought reasoning as actions invocable by the model based on its own metacognitive assessment of when external knowledge is needed \citep{liangEtAl2025}.
+
+A key finding across multiple studies is that RAG does not unconditionally improve performance: irrelevant or noisy retrieved passages can distract models and sustain hallucinations, an effect that is especially pronounced in smaller models \citep{kimEtAl2025}.
+\citet{kimEtAl2025} conducted the first large-scale expert evaluation of medical RAG, with over 80,000 annotations across 200 queries, and found that simple mitigation strategies such as evidence filtering and query reformulation substantially recover the lost performance.
+Complementing this, \citet{ozakiEtAl2025} show that models can exhibit calibrated confidence about whether retrieved documents are relevant, suggesting that models possess some capacity for self-assessment of retrieval quality.
+
+\subsection{RAG for medicine}
+
+Medical RAG has been benchmarked systematically by \citet{xiongEtAl2024}, who introduced MIRAGE — a benchmark of 7,663 questions from five medical QA datasets — and showed that MedRAG improves LLM accuracy by up to 18\% over chain-of-thought prompting alone.
+Their study identified a log-linear scaling effect and a ``lost-in-the-middle'' phenomenon in medical RAG, whereby evidence placed in the middle of a long context is less effectively utilised.
+\citet{sivakumarEtAl2026} extend this line of work with RAG-X, a diagnostic framework that evaluates the retriever and generator independently across information extraction, short-answer generation, and multiple-choice QA, introducing Context Utilisation Efficiency (CUE) metrics to isolate verified grounding from coincidental accuracy.
+
+Patient-specific knowledge poses an additional challenge: \citet{liangEtAl2025} propose RGAR, which retrieves both factual knowledge from electronic health records and conceptual knowledge from a general corpus simultaneously, consistently improving generation quality and clinical relevance compared to single-source retrieval.
+
+\subsection{Self-feedback and self-reflection}
+
+Self-RAG \citep{asaiEtAl2023} introduced the idea of training a model to adaptively retrieve passages on demand and critique its own generation using special reflection tokens, achieving strong performance across a diverse set of tasks without requiring task-specific fine-tuning.
+The self-feedback mechanism in our system is a simpler, inference-only variant: the model generates an initial answer and then receives a second prompt asking it to revise it, without any training signal.
+A related application appears in OpenScholar \citep{asaiEtAl2026}, where a self-feedback-guided generation mechanism enables iterative refinement of long-form scientific synthesis, outperforming GPT-4o by 6.1\% on a multi-paper synthesis benchmark while producing far fewer hallucinated citations.
+
+%% ─────────────────────────────────────────────────────────────────────────────
 \section{The SNS-1064 Dataset}
 \label{sec:sns1064}
 
@@ -142,7 +181,7 @@ Secondary ictus prevention & \citet{prevencion_ictus} \\
 \label{tab:sns-clinical-domains}
 \end{table}
 
-The dataset schema is presented in Table~\ref{tab:sns-schema}.
+The dataset schema is presented in \autoref{tab:sns-schema}.
 Each instance consists of a clinical question, an optional subquestion, a short judgement, supporting evidence extracted from the guideline, and optional interpretative considerations.
 This structure enables a clear separation between answers (\textit{judgement} column) and their justification (\textit{evidence} and \textit{considerations} columns):
 
@@ -176,7 +215,7 @@ For RAG-based systems, the columns of the dataset can be employed as follows:
 
 \subsubsection{Quantitative description}
 
-Table~\ref{tab:sns-totals} summarises the size of the dataset in terms of guidebooks, samples, sentences, and word tokens:
+\autoref{tab:sns-totals} summarises the size of the dataset in terms of guidebooks, samples, sentences, and word tokens:
 
 \begin{table}[H]
 \centering
@@ -194,7 +233,7 @@ Word tokens & 156,202 \\
 \label{tab:sns-totals}
 \end{table}
 
-Table~\ref{tab:sns-guidebook-dist} shows the distribution of samples across the six source guidebooks, illustrating the coverage of different clinical domains.
+\autoref{tab:sns-guidebook-dist} shows the distribution of samples across the six source guidebooks, illustrating the coverage of different clinical domains.
 
 \begin{table}[H]
 \centering
@@ -214,7 +253,7 @@ Pediatric palliative care & 24 \\
 \label{tab:sns-guidebook-dist}
 \end{table}
 
-In addition to global counts, per-feature statistics are reported in Table~\ref{tab:sns-length-stats}.
+In addition to global counts, per-feature statistics are reported in \autoref{tab:sns-length-stats}.
 \textit{Questions} and \textit{subquestions} are relatively short (means of 10.2 and 8.5 tokens, respectively), while \textit{judgements} are even more concise on average (5.7 tokens), although they exhibit high variance.
 In contrast, \textit{evidence} and \textit{considerations} are notably the longest, with mean lengths of 75.6 and 108.0 tokens and large standard deviations, indicating considerable variability.
 This pattern reflects the structure of clinical guidelines, where concise questions and short answers are accompanied by detailed evidence-based explanations and extended interpretative notes.
@@ -243,7 +282,7 @@ The dataset is generated using a rule-based Python pipeline that processes raw t
 This approach has the advantage of being efficient (no GPU needed) and fully deterministic (no Machine Learning, no possible hallucinations).
 Hallucinations can be especially harmful in the clinical domain.
 
-An overview of the dataset construction pipeline is illustrated in Figure~\ref{fig:sns-pipeline}:
+An overview of the dataset construction pipeline is illustrated in \autoref{fig:sns-pipeline}:
 
 \begin{figure}[H]
 \centering
@@ -298,7 +337,7 @@ This step ensures that the text segmentation operates on uniform textual units, 
 
 The core of the pipeline is a rule-based text segmentation built using regular expressions.
 The text is processed sequentially, assigning each line to a structural component via pattern matching.
-The segmentation logic is composed of the following patterns to identify input features (Table~\ref{tab:sns-input-triggers}) and output features (Table~\ref{tab:sns-output-triggers}):
+The segmentation logic is composed of the following patterns to identify input features (\autoref{tab:sns-input-triggers}) and output features (\autoref{tab:sns-output-triggers}):
 
 \begin{table}[H]
 \centering
@@ -371,7 +410,7 @@ overall & 81.7 & 84.1 & \textbf{+2.4} \\
 \subsubsection{Intermediate automatic evaluation}
 
 An intermediate quality check was performed to measure structural consistency.
-Table~\ref{tab:sns-intermediate-optional} shows the presence rates of optional features.
+\autoref{tab:sns-intermediate-optional} shows the presence rates of optional features.
 \textit{Subquestions} are infrequent, whereas \textit{considerations} are present in the majority of samples.
 
 \begin{table}[H]
@@ -388,7 +427,7 @@ Table~\ref{tab:sns-intermediate-optional} shows the presence rates of optional f
 \label{tab:sns-intermediate-optional}
 \end{table}
 
-Table~\ref{tab:sns-intermediate-completeness} shows that the extraction pipeline achieves near-complete presence rates for mandatory features, with noise affecting the \textit{judgement} and \textit{evidence} features.
+\autoref{tab:sns-intermediate-completeness} shows that the extraction pipeline achieves near-complete presence rates for mandatory features, with noise affecting the \textit{judgement} and \textit{evidence} features.
 
 \begin{table}[H]
 \centering
@@ -414,7 +453,7 @@ These samples were flagged for inspection and correction during the manual curat
 
 The dataset is divided into train and test sets with an 80\%--20\% split, stratified by \textit{guidebook}.
 Stratification preserves the original proportions of samples per guidebook and accordingly ensures there will be samples from all guidebooks in both sets.
-Table~\ref{tab:sns-split} shows the resulting data distribution:
+\autoref{tab:sns-split} shows the resulting data distribution:
 
 \begin{table}[H]
 \centering
@@ -451,7 +490,7 @@ The majority of samples were correctly structured, but a couple of systematic er
 \subsubsection{Final automatic evaluation}
 
 After manual curation, a final automatic evaluation was conducted to verify that all corrections had been successfully incorporated.
-Results show a fully consistent dataset with respect to mandatory features (Table~\ref{tab:sns-final-completeness}).
+Results show a fully consistent dataset with respect to mandatory features (\autoref{tab:sns-final-completeness}).
 
 \begin{table}[H]
 \centering
@@ -470,7 +509,7 @@ Results show a fully consistent dataset with respect to mandatory features (Tabl
 \label{tab:sns-final-completeness}
 \end{table}
 
-Table~\ref{tab:sns-final-optional} compares optional feature distributions before and after manual curation.
+\autoref{tab:sns-final-optional} compares optional feature distributions before and after manual curation.
 \textit{Subquestion} remains virtually unchanged ($+0.10$), while \textit{considerations} exhibits a more notable increase ($+1.50$), indicating that curation primarily addressed structural issues without substantially modifying annotation frequencies.
 
 \begin{table}[H]
@@ -509,7 +548,7 @@ Three datasets are used for evaluation, each targeting a different QA format.
 All three are available in both Spanish (original) and Basque (machine-translated):
 
 \begin{itemize}
-    \item \textbf{SNS-1064} (described in Section~\ref{sec:sns1064}): open-answer clinical QA derived from Spanish clinical guidebooks.
+    \item \textbf{SNS-1064} (described in \autoref{sec:sns1064}): open-answer clinical QA derived from Spanish clinical guidebooks.
     Questions require free-form answers grounded in evidence passages, making it the primary benchmark for assessing retrieval quality and generation faithfulness.
     \item \textbf{CasiMédicos-Arg} \citep{sviridova-etal-2024-casimedicos}: a multilingual medical QA dataset where clinicians' diagnoses are paired with natural language explanations annotated with argumentative structures.
     Questions are multiple-choice clinical cases; answers are short option labels, so semantic and contextualised metrics are more informative than lexical overlap for this dataset.
@@ -533,18 +572,18 @@ Row labels follow the pattern \textit{Xa}/\textit{Xb}: \textit{a} = Mistral-7B-I
 \subsection{Spanish results}
 \label{sec:results-es}
 
-Table~\ref{tab:es-main-sns} covers the SNS1064 dev set (open-answer, 106 examples).
+\autoref{tab:es-main-sns} covers the SNS1064 dev set (open-answer, 106 examples).
 This is the primary Spanish benchmark: answers are free-form clinical text, making lexical and semantic
 overlap metrics jointly informative.
 
 \input{main_table_es_sns1064}
 
-Table~\ref{tab:es-main-casi} covers the CasiMédicos-Arg dev set (multiple-choice, 55 examples).
+\autoref{tab:es-main-casi} covers the CasiMédicos-Arg dev set (multiple-choice, 55 examples).
 Because answers are short option labels, BERT-F1 and Cosim are more diagnostic than ROUGE-L here.
 
 \input{main_table_es_casimedicos}
 
-Table~\ref{tab:es-main-mixed} covers the mixed dev set (SNS1064 + CasiMédicos-Arg combined, 161 examples),
+\autoref{tab:es-main-mixed} covers the mixed dev set (SNS1064 + CasiMédicos-Arg combined, 161 examples),
 providing a single aggregate view across both task types.
 
 \input{main_table_es_mixed}
@@ -556,15 +595,15 @@ For Basque, row labels follow the same \textit{Xa}/\textit{Xb} pattern but
 \textit{a} = Llama-3.1-8B-Instruct and \textit{b} = Latxa-Llama-3.1-8B-Instruct
 (the Basque-adapted variant); the SF column shows noSF/SF/$\Delta$ for both models.
 
-Table~\ref{tab:eu-main-sns} covers the Basque SNS1064 EU dev set (open-answer, 106 examples).
+\autoref{tab:eu-main-sns} covers the Basque SNS1064 EU dev set (open-answer, 106 examples).
 
 \input{main_table_eu_sns1064_eu}
 
-Table~\ref{tab:eu-main-casi} covers the Basque CasiMédicos-Arg EU dev set (multiple-choice, 55 examples).
+\autoref{tab:eu-main-casi} covers the Basque CasiMédicos-Arg EU dev set (multiple-choice, 55 examples).
 
 \input{main_table_eu_casimedicos_eu}
 
-Table~\ref{tab:eu-main-mixed} covers the Basque mixed dev set (161 examples).
+\autoref{tab:eu-main-mixed} covers the Basque mixed dev set (161 examples).
 
 \input{main_table_eu_mixed_eu}
 
@@ -587,57 +626,32 @@ Table~\ref{tab:eu-main-mixed} covers the Basque mixed dev set (161 examples).
 \subsection{Qwen3.5-4B vs.\ Qwen3.5-9B: quality-cost tradeoff}
 \label{sec:disc-4b-vs-9b}
 
-To assess whether the larger model is worth the extra compute, Table~\ref{tab:4b-vs-9b} compares the best configuration found for each model size on each Spanish dataset.
+To assess whether the larger model is worth the extra compute, \autoref{tab:4b-vs-9b} compares the best configuration found for each model size on each Spanish dataset.
 The best configuration per model was identified by selecting the highest ROUGE-L result across the full ablation grid.
 
 \begin{table}[H]
 \centering
-\small
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{l l l rrr}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{l l l rrr rr}
 \toprule
-\textbf{Dataset} & \textbf{Model} & \textbf{Best config} & \textbf{ROUGE-L} & \textbf{Cosim} & \textbf{BERT-F1} \\
+\textbf{Dataset} & \textbf{Model} & \textbf{Best config} & \textbf{ROUGE-L} & \textbf{Cosim} & \textbf{BERT-F1} & \textbf{sec} & \textbf{tok} \\
 \midrule
-SNS-1064        & 4B & 3-shot + rerank5, noSF & 38.69 & 89.35 & 78.81 \\
-                & 9B & 3-shot + rerank5, noSF & 38.68 & 89.61 & 78.91 \\
-                & \multicolumn{2}{r}{$\Delta$ (9B $-$ 4B)} & $-0.01$ & $+0.26$ & $+0.10$ \\
+SNS-1064        & 4B & 3-shot + rerank5, noSF & 38.69 & 89.35 & 78.81 &  3.49 & 1983 \\
+                & 9B & 3-shot + rerank5, noSF & 38.68 & 89.61 & 78.91 &  4.10 & 1989 \\
+                & \multicolumn{2}{r}{$\Delta$ (9B $-$ 4B)} & $-0.01$ & $+0.26$ & $+0.10$ & $+0.61$ & $+6$ \\
 \midrule
-CasiMédicos-Arg & 4B & 3-shot + rerank5, SF   & 45.30 & 92.23 & 81.50 \\
-                & 9B & 3-shot, no RAG, SF      & 51.55 & 93.71 & 83.28 \\
-                & \multicolumn{2}{r}{$\Delta$ (9B $-$ 4B)} & $+6.25$ & $+1.48$ & $+1.78$ \\
+CasiMédicos-Arg & 4B & 3-shot + rerank5, SF   & 45.30 & 92.23 & 81.50 &  7.51 & 4913 \\
+                & 9B & 3-shot, no RAG, SF      & 51.55 & 93.71 & 83.28 & 14.36 & 2286 \\
+                & \multicolumn{2}{r}{$\Delta$ (9B $-$ 4B)} & $+6.25$ & $+1.48$ & $+1.78$ & $+6.85$ & $-2627$ \\
 \midrule
-Mixed           & 4B & 3-shot + rerank5, SF   & 39.46 & 89.60 & 78.86 \\
-                & 9B & rerank5, SF             & 41.08 & 90.12 & 79.44 \\
-                & \multicolumn{2}{r}{$\Delta$ (9B $-$ 4B)} & $+1.62$ & $+0.52$ & $+0.58$ \\
+Mixed           & 4B & 3-shot + rerank5, SF   & 39.46 & 89.60 & 78.86 &  5.45 & 3896 \\
+                & 9B & rerank5, SF             & 41.08 & 90.12 & 79.44 &  7.07 & 3016 \\
+                & \multicolumn{2}{r}{$\Delta$ (9B $-$ 4B)} & $+1.62$ & $+0.52$ & $+0.58$ & $+1.62$ & $-880$ \\
 \bottomrule
 \end{tabular}
-\caption{Best-configuration quality comparison of Qwen3.5-4B vs.\ Qwen3.5-9B (Spanish dev). $\Delta$ = 9B best $-$ 4B best.}
+\caption[Best-configuration quality-cost comparison of Qwen3.5-4B vs.\ Qwen3.5-9B]{Best-configuration quality and cost comparison of Qwen3.5-4B vs.\ Qwen3.5-9B (Spanish dev). $\Delta$ = 9B best $-$ 4B best.}
 \label{tab:4b-vs-9b}
-\end{table}
-
-\begin{table}[H]
-\centering
-\small
-\setlength{\tabcolsep}{5pt}
-\begin{tabular}{l l l rr}
-\toprule
-\textbf{Dataset} & \textbf{Model} & \textbf{Best config} & \textbf{sec / sample} & \textbf{tok / sample} \\
-\midrule
-SNS-1064        & 4B & 3-shot + rerank5, noSF &  3.49 & 1983 \\
-                & 9B & 3-shot + rerank5, noSF &  4.10 & 1989 \\
-                & \multicolumn{2}{r}{$\Delta$ (9B $-$ 4B)} & $+0.61$ & $+6$ \\
-\midrule
-CasiMédicos-Arg & 4B & 3-shot + rerank5, SF   &  7.51 & 4913 \\
-                & 9B & 3-shot, no RAG, SF      & 14.36 & 2286 \\
-                & \multicolumn{2}{r}{$\Delta$ (9B $-$ 4B)} & $+6.85$ & $-2627$ \\
-\midrule
-Mixed           & 4B & 3-shot + rerank5, SF   &  5.45 & 3896 \\
-                & 9B & rerank5, SF             &  7.07 & 3016 \\
-                & \multicolumn{2}{r}{$\Delta$ (9B $-$ 4B)} & $+1.62$ & $-880$ \\
-\bottomrule
-\end{tabular}
-\caption{Best-configuration cost comparison of Qwen3.5-4B vs.\ Qwen3.5-9B (Spanish dev). $\Delta$ = 9B best $-$ 4B best.}
-\label{tab:4b-vs-9b-cost}
 \end{table}
 
 The best configuration is identical for both model sizes on SNS-1064 (\textbf{3-shot + rerank5, no\_think, noSF}), confirming that open-answer clinical QA converges on the same retrieval strategy regardless of model size.

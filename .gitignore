@@ -32,6 +32,9 @@ reports/metrics/*
 # SNS-1064 paper (dataset not included)
 SNS_1064/
 
+# Old prototype
+sns_qa_rag_v1/
+
 # Personal notes and exploration files
 becoming_autonomous_with_slurm.py
 codex_history_v2.md
