@@ -1,11 +1,6 @@
-Topic,Question,Short answer,evidence,considerations
-Cardiologia,Que es la hipertension?,Presion arterial elevada,Se define por cifras persistentemente elevadas,Confirmar con mediciones repetidas
-Cardiologia,Que indica dolor toracico opresivo?,Posible isquemia miocardica,El dolor opresivo puede sugerir angina,Valorar factores de riesgo
-Cardiologia,Que es una arritmia?,Alteracion del ritmo cardiaco,Puede detectarse en el ECG,Interpretar segun sintomas
-Cardiologia,Para que sirve el ECG?,Evalua actividad electrica cardiaca,Registra ritmo y conduccion,Puede requerir pruebas complementarias
-Endocrino,Que es la diabetes mellitus?,Hiperglucemia cronica,Se relaciona con deficit o resistencia a insulina,Confirmar con criterios diagnosticos
-Endocrino,Que mide la HbA1c?,Control glucemico promedio,Refleja glucemia de los ultimos meses,Puede alterarse en algunas anemias
-Endocrino,Que es hipoglucemia?,Glucosa baja en sangre,Puede producir sudoracion temblor y confusion,Requiere actuacion rapida si es sintomatica
-Endocrino,Que hormona produce la tiroides?,Hormonas tiroideas,La glandula produce T4 y T3,Relacionar con TSH
-Neumologia,Que es el asma?,Enfermedad inflamatoria de vias aereas,Cursa con obstruccion variable,Confirmar con historia clinica y espirometria
-Neumologia,Que indica disnea?,Sensacion de falta de aire,Tiene causas respiratorias cardiacas y metabolicas,Evaluar gravedad y contexto clinico
+id,source,split,guidebook,topic,question,short_answer,evidence,subquestion
+sns1064_00003,SNS1064,dev,ansiedad.txt,"En adultos con TAG, ¿cuál es la efectividad y seguridad comparada de la buspirona frente al placebo?",f) ¿Cuál es la magnitud de los recursos requeridos (costes)?,Desconocido.,No se aportan datos debido a que la buspirona no está comercializada en España.,
+sns1064_00010,SNS1064,dev,ansiedad.txt,"En adultos con TAG, ¿cuál es la efectividad y seguridad comparada de la terapia de relajación?",k) ¿Es factible la implementación de la opción?,Probablemente sí.,"No se identificaron estudios que respondieran a la pregunta.
+
+El GAG considera que la implementación de la terapia de relajación en AP requiere de la disponibilidad de profesionales capacitados y con experiencia en esta modalidad de tratamiento, así como del espacio físico adecuado para su aplicación. La terapia de relajación es una intervención que puede desarrollar el personal de enfermería familiar y comunitaria dentro de su ámbito competencial. No obstante, la presencia del profesional de psicología clínica en AP, actualmente como proyecto piloto en algunas CCAA, ayudaría a que la recomendación se implementase sin dificultades.",
+sns1064_00012,SNS1064,dev,ansiedad.txt,"En adultos con TAG, ¿cuál es la efectividad y seguridad comparada de la buspirona frente al placebo?",j) ¿Es aceptable la opción para los agentes implicados?,Probablemente sí.,"En los ECA considerados, las tasas de abandono de la buspirona debido a efectos adversos durante el periodo de tratamiento analizado, que varió entre las 4 y 8 semanas, parecen equiparables a las del placebo (164,178,182,183,187,198,199).",
