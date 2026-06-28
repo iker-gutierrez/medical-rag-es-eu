@@ -23,6 +23,20 @@ reports/metrics/*
 !data/interim/.gitkeep
 !data/processed/.gitkeep
 !data/external/.gitkeep
+
+# Track processed datasets (exclude smoke test subsets)
+!data/processed/sns1064/
+!data/processed/sns1064/**
+!data/processed/casimedicos/
+!data/processed/casimedicos/**
+!data/processed/sns1064_casimedicos/
+!data/processed/sns1064_casimedicos/**
+!data/processed/sns1064_eu/
+!data/processed/sns1064_eu/**
+!data/processed/casimedicos_eu/
+!data/processed/casimedicos_eu/**
+!data/processed/sns1064_casimedicos_eu/
+!data/processed/sns1064_casimedicos_eu/**
 !experiments/runs/.gitkeep
 !experiments/slurm_logs/.gitkeep
 !models/.gitkeep

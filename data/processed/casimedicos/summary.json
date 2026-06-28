@@ -1,0 +1,16 @@
+{
+  "dataset": "HiTZ/casimedicos-arg",
+  "config": "es",
+  "raw_dir": "data/raw/casimedicos_arg",
+  "output_dir": "data/processed/casimedicos",
+  "num_raw_records": 622,
+  "num_normalized_records": 553,
+  "splits": {
+    "train": 381,
+    "dev": 55,
+    "test": 117
+  },
+  "sources": {
+    "CasiMedicos": 553
+  }
+}
