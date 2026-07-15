@@ -82,6 +82,20 @@ def rewire() -> list[str]:
     return [c for c in changed_file.read_text().split() if c]
 
 
+def model_label(cfg: str) -> str:
+    """Short model tag for job names, so squeue distinguishes which model a rerun
+    array belongs to instead of every array showing the same generic name."""
+    if "latxa" in cfg:
+        return "latxa"
+    if "llama31_8b" in cfg:
+        return "llama"
+    if "mistral7b" in cfg:
+        return "mistral"
+    if "qwen35_9b" in cfg:
+        return "qwen-think" if "_think_" in cfg and "no_think" not in cfg else "qwen-notk"
+    return "model"
+
+
 def rerun_configs(configs: list[str], wait: bool) -> None:
     """Re-run the changed dependent configs (all seeds), discarding their stale
     outputs first so evaluate_all picks the new ones up."""
@@ -101,20 +115,26 @@ def rerun_configs(configs: list[str], wait: bool) -> None:
             tasks.append(f"{cfg} {seed}")
 
     task_file = ROOT / "experiments" / "meanq_rerun_tasks.txt"
-    task_file.write_text("\n".join(tasks) + "\n")
     print(f"  re-running {len(tasks)} dependent runs (changed base):", flush=True)
     for t in tasks:
         print(f"    {t}")
+    task_file.write_text("\n".join(tasks) + "\n")
 
-    job = submit_rerun_array(len(tasks), task_file)
+    # Job name carries the model(s) in this batch (e.g. "abl-qwen-think") so squeue
+    # shows which rerun is which -- previously every batch was named "abl-meanq"
+    # regardless of model, and the only way to tell them apart was to cross-reference
+    # job IDs against this script's own task-list output.
+    labels = sorted(set(model_label(cfg) for cfg in configs))
+    label = "-".join(labels)[:20]
+    job = submit_rerun_array(len(tasks), task_file, label)
     if wait:
         wait_for_job(job)
 
 
-def submit_rerun_array(n: int, task_file: Path) -> str:
-    script = ROOT / "slurm" / "ablation_meanq_rerun.sh"
+def submit_rerun_array(n: int, task_file: Path, label: str = "meanq") -> str:
+    script = ROOT / "slurm" / f"ablation_{label}_rerun.sh"
     script.write_text(f"""#!/bin/bash
-#SBATCH --job-name=abl-meanq
+#SBATCH --job-name=abl-{label}
 #SBATCH --array=0-{n - 1}%2
 #SBATCH --cpus-per-task=8
 #SBATCH --nodes=1
@@ -122,8 +142,8 @@ def submit_rerun_array(n: int, task_file: Path) -> str:
 #SBATCH --time=12:00:00
 #SBATCH --mem=64GB
 #SBATCH --gres=gpu:1
-#SBATCH --output={ROOT}/experiments/slurm_logs/abl_meanq_%A_%a.log
-#SBATCH --error={ROOT}/experiments/slurm_logs/abl_meanq_%A_%a.err
+#SBATCH --output={ROOT}/experiments/slurm_logs/abl_{label}_%A_%a.log
+#SBATCH --error={ROOT}/experiments/slurm_logs/abl_{label}_%A_%a.err
 #SBATCH --chdir={ROOT}
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=igutierrez134@ikasle.ehu.eus
