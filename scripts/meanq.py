@@ -92,6 +92,50 @@ def best_by_meanq(candidates: dict[str, tuple[str, str]], *, use_sf: bool = Fals
     return winner, scores
 
 
+def decision_table(candidates: dict[str, tuple[str, str]], *, title: str,
+                   use_sf: bool = False, top: Optional[int] = None) -> str:
+    """Render a MeanQ-ranked markdown decision table for one model+language.
+
+    `candidates` maps a display label -> (id_prefix, base). Rows are sorted by
+    MeanQ descending; the top row is bolded as the chosen configuration. This is
+    the single source of the decision prose, so the .md reports never drift from
+    what the staged ablation actually selected (see best_by_meanq).
+    """
+    rows = []
+    for label, (prefix, base) in candidates.items():
+        mq, comp = meanq(prefix, base, use_sf=use_sf)
+        if mq is None:
+            continue
+        rows.append((label, mq, comp))
+    rows.sort(key=lambda r: -r[1])
+    if top is not None:
+        rows = rows[:top]
+
+    def cell(v: Optional[float]) -> str:
+        return f"{v:.2f}" if v is not None else "--"
+
+    out = [f"\n### {title}\n",
+           "| Rank | Experiment | ROUGE-L | BERT-F1 | MC-acc | **MeanQ** |",
+           "|---:|---|---:|---:|---:|---:|"]
+    for i, (label, mq, comp) in enumerate(rows):
+        r, b, m = comp["rouge_l_f1"], comp["bertscore_f1"], comp["mc_accuracy"]
+        line = (f"| {i+1} | {label} | {cell(r)} | {cell(b)} | {cell(m)} | "
+                f"{cell(mq)} |")
+        if i == 0:
+            line = (f"| **{i+1}** | **{label}** | {cell(r)} | {cell(b)} | "
+                    f"{cell(m)} | **{cell(mq)}** |")
+        out.append(line)
+    if rows:
+        best_label, best_mq, _ = rows[0]
+        out.append(
+            f"\n**Chosen config: {best_label}** (MeanQ {best_mq:.2f}), the highest "
+            "MeanQ = mean(ROUGE-L, BERT-F1, MC-acc) over 3 seeds on the no-self-feedback "
+            "prediction. MeanQ is used instead of any single metric so a config is only "
+            "chosen if it does well on lexical, semantic, and decision correctness "
+            "together.\n")
+    return "\n".join(out)
+
+
 if __name__ == "__main__":
     # Smoke: print MeanQ for the Llama retrieval configs.
     cand = {
