@@ -12,8 +12,10 @@ invalid.
 This script recomputes the dependency from MeanQ and rewrites the affected configs:
 
   row 8  (few-shot + RAG)          <- best of the six retrieval rows (1-6)
-  rows 9,10 (domain restriction)   <- best of everything before them (rows 1-8),
-                                      which includes few-shot with and without RAG
+  rows 9,10 (domain restriction)   <- best RETRIEVING config so far (rows 1-6 + row 8);
+                                      no-retrieval configs (baseline, 3-shot no RAG) are
+                                      excluded because a domain-restriction row must
+                                      actually retrieve from its restricted corpus
 
 "Best" is highest MeanQ (see scripts/meanq.py). The retrieval fields
 (retrieval_top_k, reranker_model, reranker_top_k) are copied from the winning
@@ -41,7 +43,8 @@ CONFIG_DIR = ROOT / "configs" / "experiments"
 BASE_FIELDS = ("retrieval_top_k", "reranker_model", "reranker_top_k", "retrieval_index")
 
 # Per model: the id/base of each grid row. `retrieval` = rows 1-6 (few-shot's pool);
-# `pre_domain` = rows 1-8 (the domain rows' pool); `dependents` = the configs to fix.
+# the domain rows' pool is rows 1-6 + row 8 (retrieving configs only, built below);
+# `dependents` = the configs to fix.
 # retrieval_index is intentionally NOT copied into the domain rows (they define their
 # own restricted index); it IS copied into row 8 (which shares the mixed corpus).
 MODELS = {
@@ -181,22 +184,19 @@ def process_model(name: str, spec: dict, apply: bool) -> list[str]:
     else:
         print("      already matches MeanQ winner")
 
-    # Stage B: best of rows 0-8 -> feeds domain. Includes the baseline (row 0),
-    # per the staged procedure, though a baseline win would be degenerate for a
-    # domain-restriction row (nothing to restrict) and is flagged rather than applied.
+    # Stage B: best RETRIEVING config -> feeds domain. The domain-restriction rows
+    # (SNS index / CasiMedicos index) only vary *which corpus* is retrieved from, so
+    # their base must be a config that actually retrieves: the retrieval sweep (rows
+    # 1-6) plus "3-shot + best RAG" (row 8). No-retrieval candidates -- the baseline
+    # (row 0) and "3-shot no RAG" -- are excluded, because inheriting them would set
+    # retrieval_top_k=0 and turn a domain-restriction experiment into a no-retrieval
+    # run, defeating the point of the row. (This is why 3-shot no RAG, which can top
+    # the quality ranking on MC-acc, must not be allowed to win the domain pool.)
     pre_domain = dict(spec["retrieval"])
-    if "baseline" in spec:
-        pre_domain["baseline"] = spec["baseline"]
-    pre_domain["3-shot no RAG"] = spec["fewshot_no_rag"]
     pre_domain["3-shot + best RAG"] = spec["row8"]
     win_pd, scores_pd = best_by_meanq(pre_domain)
-    print(f"  best of rows 0-8 (domain base): {win_pd}"
+    print(f"  best retrieving config (domain base): {win_pd}"
           f"  (MeanQ {scores_pd.get(win_pd, float('nan')):.2f})")
-
-    if win_pd == "baseline":
-        print("      NOTE: baseline won the domain pool -- domain restriction is not "
-              "meaningful without retrieval; leaving domain rows unchanged.")
-        return changed_runs
     pd_prefix, pd_base = pre_domain[win_pd]
     domain_base_fields = base_retrieval_fields(pd_prefix, pd_base)
     # The domain rows keep their own restricted retrieval_index; only the
