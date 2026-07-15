@@ -115,7 +115,7 @@ def submit_rerun_array(n: int, task_file: Path) -> str:
     script = ROOT / "slurm" / "ablation_meanq_rerun.sh"
     script.write_text(f"""#!/bin/bash
 #SBATCH --job-name=abl-meanq
-#SBATCH --array=0-{n - 1}%1
+#SBATCH --array=0-{n - 1}%2
 #SBATCH --cpus-per-task=8
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
