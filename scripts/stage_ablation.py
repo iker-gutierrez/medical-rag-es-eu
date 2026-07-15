@@ -155,6 +155,11 @@ source /home/igutierrez134/envs/med_rag_thesis/bin/activate
 export HF_HOME="/home/igutierrez134/.cache/huggingface"
 export TRANSFORMERS_CACHE="/home/igutierrez134/.cache/huggingface"
 export HF_HUB_CACHE="/home/igutierrez134/.cache/huggingface"
+# All ablation models are already cached locally. Without this, vLLM still hits
+# the HF Hub API at startup to list repo files even when weights are cached, and
+# with %2 concurrency two tasks loading the same model can trip HF's 429 rate
+# limit at once (hit on 1280_..._seed43: "reached your 'api' rate limit").
+export HF_HUB_OFFLINE=1
 export TOKENIZERS_PARALLELISM=false
 export OMP_NUM_THREADS=4
 export MKL_NUM_THREADS=4
