@@ -59,6 +59,39 @@ def metric_over_seeds(prefix: str, base: str, metric: str, *, suffix: str = "",
     return statistics.mean(vals) if vals else None
 
 
+def metric_per_seed(prefix: str, base: str, metric: str, *, suffix: str = "",
+                    use_sf: bool = False) -> list[Optional[float]]:
+    """Per-seed values (None where a seed is missing the metric), seed order preserved.
+
+    Unlike metric_over_seeds this keeps one entry per seed so callers can compute a
+    std or pair the value with another metric from the same seed.
+    """
+    out: list[Optional[float]] = []
+    for seed in SEEDS:
+        summ = _load(f"{prefix}_{base}_seed{seed}", suffix)
+        v = _overall(summ, use_sf).get(metric) if summ else None
+        out.append(float(v) if v is not None else None)
+    return out
+
+
+def meanq_per_seed(prefix: str, base: str, *, use_sf: bool = False) -> list[Optional[float]]:
+    """Per-seed MeanQ = mean(ROUGE-L, BERT-F1, MC-acc) within each seed.
+
+    ROUGE-L/BERT-F1 come from the mixed metric file; MC-acc from that same seed's
+    CasiMedicos subset (undefined on the open-answer half). A seed's MeanQ is the
+    mean of whichever of its three components exist; None if the seed has none.
+    Keeping it per-seed lets the summary/decision tables report a real ±std on MeanQ.
+    """
+    rouge = metric_per_seed(prefix, base, "rouge_l_f1", use_sf=use_sf)
+    bert = metric_per_seed(prefix, base, "bertscore_f1", use_sf=use_sf)
+    mc = metric_per_seed(prefix, base, "mc_accuracy", suffix="_casimedicos", use_sf=use_sf)
+    out: list[Optional[float]] = []
+    for r, b, m in zip(rouge, bert, mc):
+        present = [v for v in (r, b, m) if v is not None]
+        out.append(statistics.mean(present) if present else None)
+    return out
+
+
 def meanq(prefix: str, base: str, *, use_sf: bool = False) -> tuple[Optional[float], dict]:
     """MeanQ on the MIXED dev set. Returns (MeanQ, per-metric components).
 

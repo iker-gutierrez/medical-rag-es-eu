@@ -48,30 +48,48 @@ EXPERIMENTS = [
     ("cross-domain: CasiMedicos index","1050", "llama31_8b_rag_casimedicos_e5_rerank5_extractive_mixed_eu_dev","1061","latxa_llama31_8b_rag_casimedicos_e5_rerank5_extractive_mixed_eu_dev"),
 ]
 
-def build_meanq_decision_tables() -> str:
-    """MeanQ-ranked decision table per model (Llama, Latxa), from meanq.py.
+# The two EU models and which EXPERIMENTS tuple columns give their (id, base).
+#   tuple = (label, llama_id, llama_base, latxa_id, latxa_base)
+EU_MODELS = [
+    ("Llama-3.1-8B-Instruct",       1, 2),
+    ("Latxa-Llama-3.1-8B-Instruct", 3, 4),
+]
+# Retrieval sweep rows the base RAG config is chosen from (indices into EXPERIMENTS):
+#   1 e5 top1, 2 e5 top3, 3 e5 top5, 4 rerank1, 5 rerank3, 6 rerank5.
+RETRIEVAL_IDX = [1, 2, 3, 4, 5, 6]
 
-    Same source of truth as the staged ablation; regenerated, never hand-edited.
-    Indices into EXPERIMENTS: 1 e5 top1 ... 6 rerank5 are the retrieval sweep the
-    base RAG config is chosen from. EU tuple = (label, llama_id, llama_base,
-    latxa_id, latxa_base).
+
+def _load_summaries_for(source_suffix: str):
+    def loader(id_prefix: str, base: str) -> list:
+        return [load_summary(run_dir(id_prefix, base, s, source_suffix), source_suffix)
+                for s in SEEDS]
+    return loader
+
+
+def build_meanq_decision_tables(source_suffix: str = "") -> str:
+    """MeanQ-ranked decision table per model (Llama, Latxa), over the retrieval sweep.
+
+    Shows every metric (ROUGE-L, BERT-F1, MC-acc, MeanQ, sec/sample, tok/sample),
+    each split noSF/SF/Δ, ranked by noSF MeanQ -- the score the staged ablation uses
+    to pick the base RAG config that the few-shot and domain rows are wired to. Same
+    per-seed MeanQ as scripts/meanq.py, so the ranking never drifts from selection.
     """
-    from meanq import decision_table  # noqa: E402
-
-    RETRIEVAL_IDX = [1, 2, 3, 4, 5, 6]
-    labels = [EXPERIMENTS[i][0] for i in RETRIEVAL_IDX]
-
-    def cand(pick_id, pick_base):
-        return {lbl: (EXPERIMENTS[i][pick_id], EXPERIMENTS[i][pick_base])
-                for i, lbl in zip(RETRIEVAL_IDX, labels)}
+    from metric_tables import render_model_table  # noqa: E402
+    include_mc = source_suffix != "_sns1064"
+    loader = _load_summaries_for(source_suffix)
 
     parts = ["\n### Best RAG config by MeanQ (EU mixed dev task)\n",
-             "MeanQ = mean(ROUGE-L, BERT-F1, MC-acc), averaged over 3 seeds on the "
-             "no-self-feedback prediction. This is the score the staged ablation uses "
-             "to choose the base RAG config that the few-shot and domain-restriction "
-             "experiments are then wired to.\n"]
-    parts.append(decision_table(cand(1, 2), title="Llama-3.1-8B-Instruct"))
-    parts.append(decision_table(cand(3, 4), title="Latxa-Llama-3.1-8B-Instruct"))
+             "MeanQ = mean(ROUGE-L, BERT-F1, MC-acc), per seed then averaged, on the "
+             "no-self-feedback prediction; rows are ranked by it. This is the score "
+             "the staged ablation uses to choose the base RAG config that the few-shot "
+             "and domain-restriction experiments are then wired to.\n"]
+    for label, id_col, base_col in EU_MODELS:
+        rows = [(0, EXPERIMENTS[i][0], EXPERIMENTS[i][id_col], EXPERIMENTS[i][base_col])
+                for i in RETRIEVAL_IDX]
+        parts.append(f"\n#### {label}\n")
+        parts.append(render_model_table(
+            rows, cost_nosf=_cost_nosf, cost_sf=_cost_sf, cost_delta=_cost_delta,
+            load_summaries=loader, include_mc=include_mc, rank_by_meanq=True))
     return "\n".join(parts)
 
 
@@ -474,74 +492,20 @@ def load_sf_delta(id_prefix: str, base: str, suffix: str) -> tuple[float | None,
 
 
 def build_summary_table_for_source(source_suffix: str, section_desc: str) -> str:
-    """Build a compact markdown summary table (BERT noSF, BERT SF, SF Δ) for both Llama and Latxa.
-
-    Best row per model is determined by highest BERT (SF) mean.
-    """
-    EXPERIMENT_LABELS = [lbl for lbl, *_ in EXPERIMENTS]
-    models = [
-        ("Llama-3.1-8B-Instruct",      [(l_id, l_base) for _, l_id, l_base, _, _ in EXPERIMENTS]),
-        ("Latxa-Llama-3.1-8B-Instruct", [(x_id, x_base) for _, _, _, x_id, x_base in EXPERIMENTS]),
-    ]
-    include_mc_accuracy = source_suffix != "_sns1064"
+    """Per-model summary table over ALL experiments, showing every metric
+    (ROUGE-L, BERT-F1, MC-acc, MeanQ, sec/sample, tok/sample) split noSF/SF/Δ."""
+    from metric_tables import render_model_table  # noqa: E402
+    include_mc = source_suffix != "_sns1064"
+    loader = _load_summaries_for(source_suffix)
 
     lines = [f"\n*{section_desc}*\n"]
-
-    for model_label, id_bases in models:
-        # Collect per-row values first so we can determine best in one pass
-        row_data = []
-        for id_prefix, base in id_bases:
-            summaries = [load_summary(run_dir(id_prefix, base, s, source_suffix), source_suffix) for s in SEEDS]
-            bm, bs = _mean_std(_vals(summaries, "overall", "bertscore_f1", use_after=False))
-            am, as_ = _mean_std(_vals(summaries, "overall", "bertscore_f1", use_after=True))
-            dm, ds = load_sf_delta(id_prefix, base, source_suffix)
-            cost_nosf = _cost_nosf(summaries)
-            cost_sf = _cost_sf(summaries)
-            cost_delta = _cost_delta(summaries)
-            mc_nosf_m, mc_nosf_s = _mean_std(_vals(summaries, "overall", "mc_accuracy", use_after=False))
-            mc_sf_m, mc_sf_s = _mean_std(_vals(summaries, "overall", "mc_accuracy", use_after=True))
-            row_data.append((bm, bs, am, as_, dm, ds, cost_nosf, cost_sf, cost_delta, mc_nosf_m, mc_nosf_s, mc_sf_m, mc_sf_s))
-
-        # Best = highest max(noSF, SF) — i.e. the best achievable score for that config
-        best_idx, best_val = -1, -1.0
-        for i, (bm, _, am, *_rest) in enumerate(row_data):
-            best_of_two = max(v for v in (bm, am) if v is not None) if any(v is not None for v in (bm, am)) else None
-            if best_of_two is not None and best_of_two > best_val:
-                best_val, best_idx = best_of_two, i
-
+    for model_label, id_col, base_col in EU_MODELS:
+        rows = [(i, EXPERIMENTS[i][0], EXPERIMENTS[i][id_col], EXPERIMENTS[i][base_col])
+                for i in range(len(EXPERIMENTS))]
         lines.append(f"\n**{model_label}**\n")
-        mc_header = "MC Accuracy (noSF) | MC Accuracy (SF) | " if include_mc_accuracy else ""
-        mc_align = "---: | ---: | " if include_mc_accuracy else ""
-        lines.append(f"| # | Experiment | {mc_header}BERT (noSF) | BERT (SF) | SF Δ | sec/sample (noSF) | sec/sample (SF) | sec/sample Δ | tokens/sample (noSF) | tokens/sample (SF) | tokens/sample Δ |")
-        lines.append(f"|---:|---|{mc_align}---:|---:|---:|---:|---:|---:|---:|---:|---:|")
-        for i, (bm, bs, am, as_, dm, ds, cost_nosf, cost_sf, cost_delta, mc_nosf_m, mc_nosf_s, mc_sf_m, mc_sf_s) in enumerate(row_data):
-            bert_str = f"{bm:.2f}±{bs:.2f}" if bm is not None else ""
-            sf_str = f"{am:.2f}±{as_:.2f}" if am is not None else ""
-            delta_str = f"{dm:+.2f}±{ds:.2f}" if dm is not None else ""
-            sec_nosf_str = cost_nosf.get("sec_per_sample", "")
-            sec_sf_str = cost_sf.get("sec_per_sample", "")
-            sec_delta_str = cost_delta.get("sec_per_sample", "")
-            tok_nosf_str = cost_nosf.get("mean_total_tokens", "")
-            tok_sf_str = cost_sf.get("mean_total_tokens", "")
-            tok_delta_str = cost_delta.get("mean_total_tokens", "")
-            lbl = EXPERIMENT_LABELS[i]
-            mc_cells = ""
-            if include_mc_accuracy:
-                mc_nosf_str = f"{mc_nosf_m:.2f}±{mc_nosf_s:.2f}" if mc_nosf_m is not None else ""
-                mc_sf_str = f"{mc_sf_m:.2f}±{mc_sf_s:.2f}" if mc_sf_m is not None else ""
-                mc_cells = f"{mc_nosf_str} | {mc_sf_str} | "
-            # Bold the winning column (noSF or SF, whichever is higher)
-            if i == best_idx:
-                nosf_is_best = bm is not None and (am is None or bm >= am)
-                b_str = f"**{bert_str}**" if nosf_is_best else bert_str
-                s_str = f"**{sf_str}**" if not nosf_is_best else sf_str
-                lines.append(f"| **{i}** | **{lbl}** | {mc_cells}{b_str} | {s_str} | {delta_str} | "
-                             f"{sec_nosf_str} | {sec_sf_str} | {sec_delta_str} | "
-                             f"{tok_nosf_str} | {tok_sf_str} | {tok_delta_str} |")
-            else:
-                lines.append(f"| {i} | {lbl} | {mc_cells}{bert_str} | {sf_str} | {delta_str} | "
-                             f"{sec_nosf_str} | {sec_sf_str} | {sec_delta_str} | "
-                             f"{tok_nosf_str} | {tok_sf_str} | {tok_delta_str} |")
+        lines.append(render_model_table(
+            rows, cost_nosf=_cost_nosf, cost_sf=_cost_sf, cost_delta=_cost_delta,
+            load_summaries=loader, include_mc=include_mc, rank_by_meanq=False))
 
     return "\n".join(lines) + "\n"
 
@@ -579,36 +543,14 @@ def replace_or_append_takeaways(content: str, new_takeaways: str) -> str:
     return content.rstrip() + "\n" + new_takeaways
 
 
+def remove_section(content: str, heading: str) -> str:
+    """Drop a whole '## <heading>' section (up to the next '## ' or EOF)."""
+    pattern = re.compile(rf'\n## {re.escape(heading)}\n.*?(?=\n## |\Z)', re.DOTALL)
+    return pattern.sub("", content)
+
+
 def main() -> None:
     n_seeds_note = f"mean±std across {len(SEEDS)} seeds ({', '.join(str(s) for s in SEEDS)})"
-
-    sns_section = make_section(
-        title="SNS1064 EU dev results",
-        subtitle=(
-            f"SNS1064 EU dev set, 63 examples, open-answer task (Basque). "
-            f"vLLM inference, {n_seeds_note}. "
-            "a = Llama-3.1-8B-Instruct, b = Latxa-Llama-3.1-8B-Instruct."
-        ),
-        source_suffix="_sns1064",
-    )
-    casi_section = make_section(
-        title="CasiMedicos EU dev results",
-        subtitle=(
-            f"CasiMedicos EU dev set, 63 examples, multiple-choice task (Basque). "
-            f"vLLM inference, {n_seeds_note}. "
-            "a = Llama-3.1-8B-Instruct, b = Latxa-Llama-3.1-8B-Instruct."
-        ),
-        source_suffix="_casimedicos",
-    )
-    mixed_section = make_section(
-        title="SNS1064+CasiMedicos EU dev results",
-        subtitle=(
-            f"SNS1064+CasiMedicos EU dev set, 126 examples (63 SNS1064-EU + 63 CasiMedicos-EU). "
-            f"vLLM inference, {n_seeds_note}. "
-            "a = Llama-3.1-8B-Instruct, b = Latxa-Llama-3.1-8B-Instruct."
-        ),
-        source_suffix="",
-    )
 
     content = REPORT_PATH.read_text(encoding="utf-8")
 
@@ -619,12 +561,12 @@ def main() -> None:
         next_sec = content.find("\n## ", start + len(old_marker))
         content = content[:start] + (content[next_sec:] if next_sec != -1 else "")
 
-    # Replace all three result sections
-    content = replace_section(content, r"SNS1064 EU dev results", sns_section)
-    content = replace_section(content, r"CasiMedicos EU dev results", casi_section)
-    content = replace_section(content, r"SNS1064\+CasiMedicos(?: EU)? dev results", mixed_section)
+    # The md now carries only the summary tables and the decision tables; the
+    # per-experiment "main" tables under "## Current results" are dropped.
+    content = remove_section(content, "Current results")
 
-    # Build and append/replace Takeaways
+    summary_note = ("**All metrics, mean±std across 3 seeds "
+                    "(noSF = no self-feedback, SF = self-feedback, Δ = SF − noSF):**")
     sns_tk_body = build_summary_table_for_source(
         "_sns1064",
         f"SNS1064 EU dev set, 63 examples, open-answer task (Basque). vLLM, {n_seeds_note}.",
@@ -639,18 +581,15 @@ def main() -> None:
     )
     new_takeaways = (
         "\n## Takeaways\n"
-        f"\n### SNS1064 EU dev summary\n\n**Core findings (overall BERTScore, mean±std across 3 seeds; best row = highest max(noSF, SF)):**\n"
-        + sns_tk_body
-        + f"\n### CasiMedicos EU dev summary\n\n**Core findings (overall BERTScore, mean±std across 3 seeds; best row = highest max(noSF, SF)):**\n"
-        + casi_tk_body
-        + f"\n### SNS1064+CasiMedicos EU dev summary\n\n**Core findings (overall BERTScore, mean±std across 3 seeds; best row = highest max(noSF, SF)):**\n"
-        + mixed_tk_body
+        f"\n### SNS1064 EU dev summary\n\n{summary_note}\n" + sns_tk_body
+        + f"\n### CasiMedicos EU dev summary\n\n{summary_note}\n" + casi_tk_body
+        + f"\n### SNS1064+CasiMedicos EU dev summary\n\n{summary_note}\n" + mixed_tk_body
         + build_meanq_decision_tables()
     )
     content = replace_or_append_takeaways(content, new_takeaways)
 
     REPORT_PATH.write_text(content, encoding="utf-8")
-    print(f"Updated {REPORT_PATH}  (3 result sections + Takeaways, {len(EXPERIMENTS)} experiments each)")
+    print(f"Updated {REPORT_PATH}  (summary + decision tables; main tables removed)")
 
 
 if __name__ == "__main__":

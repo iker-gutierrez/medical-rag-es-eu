@@ -61,34 +61,49 @@ EXPERIMENTS = [
      "1279", "qwen35_9b_rag_casimedicos_e5_rerank5_think_extractive_mixed_dev"),
 ]
 
-def build_meanq_decision_tables() -> str:
-    """MeanQ-ranked decision table per model, generated from meanq.py.
+# The three ES models and which EXPERIMENTS tuple columns give their (id, base).
+#   tuple = (label, mistral_id, mistral_base, qwen_id, qwen_base, qwenthink_id, qwenthink_base)
+ES_MODELS = [
+    ("Mistral-7B-Instruct",   1, 2),
+    ("Qwen3.5-9B (no-think)", 3, 4),
+    ("Qwen3.5-9B (think)",    5, 6),
+]
+# Retrieval sweep rows the base RAG config is chosen from (indices into EXPERIMENTS):
+#   1 e5 top1, 2 e5 top3, 3 e5 top5, 4 rerank1, 5 rerank3, 6 rerank5.
+RETRIEVAL_IDX = [1, 2, 3, 4, 5, 6]
 
-    The retrieval sweep (rows 1-6: e5 top {1,3,5}, rerank top {1,3,5}) is the set
-    the base RAG config is chosen from, exactly as the staged ablation does it. The
-    winner here is the config the dependent experiments (few-shot, domain) are wired
-    to, so this table is regenerated from the same source of truth (scripts/meanq.py)
-    and never hand-edited.
+
+def _load_summaries_for(source_suffix: str):
+    def loader(id_prefix: str, base: str) -> list:
+        return [load_summary(run_dir(id_prefix, base, s, source_suffix), source_suffix)
+                for s in SEEDS]
+    return loader
+
+
+def build_meanq_decision_tables(source_suffix: str = "") -> str:
+    """MeanQ-ranked decision table per model, over the retrieval sweep.
+
+    Shows every metric (ROUGE-L, BERT-F1, MC-acc, MeanQ, sec/sample, tok/sample),
+    each split noSF/SF/Δ, ranked by noSF MeanQ -- the score the staged ablation uses
+    to pick the base RAG config that the few-shot and domain rows are wired to. Same
+    per-seed MeanQ as scripts/meanq.py, so the ranking never drifts from selection.
     """
-    from meanq import decision_table  # noqa: E402
-
-    # (id_prefix, base) for the six retrieval rows, per model. Indices into EXPERIMENTS:
-    #   1 e5 top1, 2 e5 top3, 3 e5 top5, 4 rerank1, 5 rerank3, 6 rerank5.
-    RETRIEVAL_IDX = [1, 2, 3, 4, 5, 6]
-    labels = [EXPERIMENTS[i][0] for i in RETRIEVAL_IDX]
-
-    def cand(pick_id, pick_base):
-        return {lbl: (EXPERIMENTS[i][pick_id], EXPERIMENTS[i][pick_base])
-                for i, lbl in zip(RETRIEVAL_IDX, labels)}
+    from metric_tables import render_model_table  # noqa: E402
+    include_mc = source_suffix != "_sns1064"
+    loader = _load_summaries_for(source_suffix)
 
     parts = ["\n### Best RAG config by MeanQ (ES mixed dev task)\n",
-             "MeanQ = mean(ROUGE-L, BERT-F1, MC-acc), averaged over 3 seeds on the "
-             "no-self-feedback prediction. This is the score the staged ablation uses "
-             "to choose the base RAG config that the few-shot and domain-restriction "
-             "experiments are then wired to.\n"]
-    parts.append(decision_table(cand(1, 2), title="Mistral-7B-Instruct"))
-    parts.append(decision_table(cand(3, 4), title="Qwen3.5-9B (no-think)"))
-    parts.append(decision_table(cand(5, 6), title="Qwen3.5-9B (think)"))
+             "MeanQ = mean(ROUGE-L, BERT-F1, MC-acc), per seed then averaged, on the "
+             "no-self-feedback prediction; rows are ranked by it. This is the score "
+             "the staged ablation uses to choose the base RAG config that the few-shot "
+             "and domain-restriction experiments are then wired to.\n"]
+    for label, id_col, base_col in ES_MODELS:
+        rows = [(0, EXPERIMENTS[i][0], EXPERIMENTS[i][id_col], EXPERIMENTS[i][base_col])
+                for i in RETRIEVAL_IDX]
+        parts.append(f"\n#### {label}\n")
+        parts.append(render_model_table(
+            rows, cost_nosf=_cost_nosf, cost_sf=_cost_sf, cost_delta=_cost_delta,
+            load_summaries=loader, include_mc=include_mc, rank_by_meanq=True))
     return "\n".join(parts)
 
 THINK_VS_NOTHINK_NOTE = """
@@ -560,77 +575,23 @@ def build_summary_table_for_source(
     section_desc: str,
     best_rag_note: str,
 ) -> str:
-    """Build a compact markdown summary table (BERT noSF, BERT SF, SF Δ) for both models.
-
-    Best row per model is determined by highest BERT (SF) mean.
-    """
-    EXPERIMENT_LABELS = [lbl for lbl, *_ in EXPERIMENTS]
-    models = [
-        ("Mistral-7B-Instruct",       [(m_id, m_base) for _, m_id, m_base, _, _, _, _ in EXPERIMENTS]),
-        ("Qwen3.5-9B (no_think)",     [(q_id, q_base) for _, _, _, q_id, q_base, _, _ in EXPERIMENTS]),
-        ("Qwen3.5-9B (think)",        [(qt_id, qt_base) for _, _, _, _, _, qt_id, qt_base in EXPERIMENTS]),
-    ]
-    include_mc_accuracy = source_suffix != "_sns1064"
+    """Per-model summary table over ALL experiments, showing every metric
+    (ROUGE-L, BERT-F1, MC-acc, MeanQ, sec/sample, tok/sample) split noSF/SF/Δ."""
+    from metric_tables import render_model_table  # noqa: E402
+    include_mc = source_suffix != "_sns1064"
+    loader = _load_summaries_for(source_suffix)
 
     lines = [f"\n*{section_desc}*\n"]
     if best_rag_note:
         lines.append(f"*{best_rag_note}*\n")
 
-    for model_label, id_bases in models:
-        # Collect per-row values first so we can determine best in one pass
-        row_data = []
-        for id_prefix, base in id_bases:
-            summaries = [load_summary(run_dir(id_prefix, base, s, source_suffix), source_suffix) for s in SEEDS]
-            bm, bs = _mean_std(_vals(summaries, "overall", "bertscore_f1", use_after=False))
-            am, as_ = _mean_std(_vals(summaries, "overall", "bertscore_f1", use_after=True))
-            dm, ds = load_sf_delta(id_prefix, base, source_suffix)
-            cost_nosf = _cost_nosf(summaries)
-            cost_sf = _cost_sf(summaries)
-            cost_delta = _cost_delta(summaries)
-            mc_nosf_m, mc_nosf_s = _mean_std(_vals(summaries, "overall", "mc_accuracy", use_after=False))
-            mc_sf_m, mc_sf_s = _mean_std(_vals(summaries, "overall", "mc_accuracy", use_after=True))
-            row_data.append((bm, bs, am, as_, dm, ds, cost_nosf, cost_sf, cost_delta, mc_nosf_m, mc_nosf_s, mc_sf_m, mc_sf_s))
-
-        # Best = highest max(noSF, SF) — i.e. the best achievable score for that config
-        best_idx, best_val = -1, -1.0
-        for i, (bm, _, am, *_rest) in enumerate(row_data):
-            best_of_two = max(v for v in (bm, am) if v is not None) if any(v is not None for v in (bm, am)) else None
-            if best_of_two is not None and best_of_two > best_val:
-                best_val, best_idx = best_of_two, i
-
+    for model_label, id_col, base_col in ES_MODELS:
+        rows = [(i, EXPERIMENTS[i][0], EXPERIMENTS[i][id_col], EXPERIMENTS[i][base_col])
+                for i in range(len(EXPERIMENTS))]
         lines.append(f"\n**{model_label}**\n")
-        mc_header = "MC Accuracy (noSF) | MC Accuracy (SF) | " if include_mc_accuracy else ""
-        mc_align = "---: | ---: | " if include_mc_accuracy else ""
-        lines.append(f"| # | Experiment | {mc_header}BERT (noSF) | BERT (SF) | SF Δ | sec/sample (noSF) | sec/sample (SF) | sec/sample Δ | tokens/sample (noSF) | tokens/sample (SF) | tokens/sample Δ |")
-        lines.append(f"|---:|---|{mc_align}---:|---:|---:|---:|---:|---:|---:|---:|---:|")
-        for i, (bm, bs, am, as_, dm, ds, cost_nosf, cost_sf, cost_delta, mc_nosf_m, mc_nosf_s, mc_sf_m, mc_sf_s) in enumerate(row_data):
-            bert_str = f"{bm:.2f}±{bs:.2f}" if bm is not None else ""
-            sf_str = f"{am:.2f}±{as_:.2f}" if am is not None else ""
-            delta_str = f"{dm:+.2f}±{ds:.2f}" if dm is not None else ""
-            sec_nosf_str = cost_nosf.get("sec_per_sample", "")
-            sec_sf_str = cost_sf.get("sec_per_sample", "")
-            sec_delta_str = cost_delta.get("sec_per_sample", "")
-            tok_nosf_str = cost_nosf.get("mean_total_tokens", "")
-            tok_sf_str = cost_sf.get("mean_total_tokens", "")
-            tok_delta_str = cost_delta.get("mean_total_tokens", "")
-            lbl = EXPERIMENT_LABELS[i]
-            mc_cells = ""
-            if include_mc_accuracy:
-                mc_nosf_str = f"{mc_nosf_m:.2f}±{mc_nosf_s:.2f}" if mc_nosf_m is not None else ""
-                mc_sf_str = f"{mc_sf_m:.2f}±{mc_sf_s:.2f}" if mc_sf_m is not None else ""
-                mc_cells = f"{mc_nosf_str} | {mc_sf_str} | "
-            # Bold the winning column (noSF or SF, whichever is higher)
-            if i == best_idx:
-                nosf_is_best = bm is not None and (am is None or bm >= am)
-                b_str = f"**{bert_str}**" if nosf_is_best else bert_str
-                s_str = f"**{sf_str}**" if not nosf_is_best else sf_str
-                lines.append(f"| **{i}** | **{lbl}** | {mc_cells}{b_str} | {s_str} | {delta_str} | "
-                             f"{sec_nosf_str} | {sec_sf_str} | {sec_delta_str} | "
-                             f"{tok_nosf_str} | {tok_sf_str} | {tok_delta_str} |")
-            else:
-                lines.append(f"| {i} | {lbl} | {mc_cells}{bert_str} | {sf_str} | {delta_str} | "
-                             f"{sec_nosf_str} | {sec_sf_str} | {sec_delta_str} | "
-                             f"{tok_nosf_str} | {tok_sf_str} | {tok_delta_str} |")
+        lines.append(render_model_table(
+            rows, cost_nosf=_cost_nosf, cost_sf=_cost_sf, cost_delta=_cost_delta,
+            load_summaries=loader, include_mc=include_mc, rank_by_meanq=False))
 
     return "\n".join(lines) + "\n"
 
@@ -668,9 +629,9 @@ def replace_section(content: str, section_title_re: str, new_section: str) -> st
 
 
 def make_takeaway_subsection(title: str, section_desc: str, source_suffix: str) -> str:
-    best_rag_note = ""
-    table_md = build_summary_table_for_source(source_suffix, section_desc, best_rag_note)
-    return f"\n### {title}\n\n**Core findings (overall BERTScore, mean±std across 3 seeds; best row = highest max(noSF, SF)):**\n{table_md}"
+    table_md = build_summary_table_for_source(source_suffix, section_desc, best_rag_note="")
+    return (f"\n### {title}\n\n**All metrics, mean±std across 3 seeds "
+            f"(noSF = no self-feedback, SF = self-feedback, Δ = SF − noSF):**\n{table_md}")
 
 
 def replace_takeaways(content: str, new_takeaways: str) -> str:
@@ -681,37 +642,15 @@ def replace_takeaways(content: str, new_takeaways: str) -> str:
     return content.rstrip() + "\n" + new_takeaways
 
 
-def main() -> None:
+def remove_section(content: str, heading: str) -> str:
+    """Drop a whole '## <heading>' section (up to the next '## ' or EOF)."""
     import re
-    n_seeds_note = f"mean±std across {len(SEEDS)} seeds ({', '.join(str(s) for s in SEEDS)})"
+    pattern = re.compile(rf'\n## {re.escape(heading)}\n.*?(?=\n## |\Z)', re.DOTALL)
+    return pattern.sub("", content)
 
-    sns_section = make_section(
-        title="SNS1064 dev results",
-        subtitle=(
-            f"SNS1064 dev set, 63 examples, open-answer task. "
-            f"vLLM inference, {n_seeds_note}. "
-            "a = Mistral-7B-Instruct (noSF/SF), b = Qwen3.5-9B (no_think, noSF/SF)."
-        ),
-        source_suffix="_sns1064",
-    )
-    casi_section = make_section(
-        title="CasiMedicos dev results",
-        subtitle=(
-            f"CasiMedicos dev set, 63 examples, multiple-choice task. "
-            f"vLLM inference, {n_seeds_note}. "
-            "a = Mistral-7B-Instruct (noSF/SF), b = Qwen3.5-9B (no_think, noSF/SF)."
-        ),
-        source_suffix="_casimedicos",
-    )
-    mixed_section = make_section(
-        title="SNS1064+CasiMedicos dev results",
-        subtitle=(
-            f"SNS1064+CasiMedicos dev set, 126 examples (63 SNS1064 + 63 CasiMedicos). "
-            f"vLLM inference, {n_seeds_note}. "
-            "a = Mistral-7B-Instruct (noSF/SF), b = Qwen3.5-9B (no_think, noSF/SF)."
-        ),
-        source_suffix="",
-    )
+
+def main() -> None:
+    n_seeds_note = f"mean±std across {len(SEEDS)} seeds ({', '.join(str(s) for s in SEEDS)})"
 
     content = REPORT_PATH.read_text(encoding="utf-8")
 
@@ -722,9 +661,9 @@ def main() -> None:
         next_sec = content.find("\n## ", start + len(old_marker))
         content = content[:start] + (content[next_sec:] if next_sec != -1 else "")
 
-    content = replace_section(content, r"SNS1064 dev results", sns_section)
-    content = replace_section(content, r"CasiMedicos dev results", casi_section)
-    content = replace_section(content, r"SNS1064\+CasiMedicos dev results", mixed_section)
+    # The md now carries only the summary tables and the decision tables; the
+    # per-experiment "main" tables under "## Current results" are dropped.
+    content = remove_section(content, "Current results")
 
     # Build and replace Takeaways
     sns_tk = make_takeaway_subsection(
@@ -753,7 +692,7 @@ def main() -> None:
     content = replace_takeaways(content, new_takeaways)
 
     REPORT_PATH.write_text(content, encoding="utf-8")
-    print(f"Updated {REPORT_PATH}  (3 result sections + Takeaways, {len(EXPERIMENTS)} experiments each)")
+    print(f"Updated {REPORT_PATH}  (summary + decision tables; main tables removed)")
 
 
 if __name__ == "__main__":
