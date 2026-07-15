@@ -54,27 +54,33 @@ mkdir -p data/processed/sns1064_eu
 mkdir -p data/processed/casimedicos_eu
 mkdir -p data/processed/sns1064_casimedicos_eu
 
-echo "=== Translating SNS1064 ==="
+# SNS1064 splits changed (60/20/20), so dev/test and train all need retranslation.
+# dev/test: used as experiment inputs; train: used to build retrieval index.
+echo "=== Translating SNS1064 (dev + test for experiments; train for retrieval index) ==="
 python scripts/translate_to_basque.py \
   --input \
-    data/processed/sns1064/train.jsonl \
     data/processed/sns1064/dev.jsonl \
     data/processed/sns1064/test.jsonl \
+    data/processed/sns1064/train.jsonl \
   --output \
-    data/processed/sns1064_eu/train.jsonl \
     data/processed/sns1064_eu/dev.jsonl \
     data/processed/sns1064_eu/test.jsonl \
+    data/processed/sns1064_eu/train.jsonl \
   --model "$EU_TRANSLATION_MODEL" \
   --batch-size 32
 
-echo "=== Translating CasiMedicos ==="
+# CasiMedicos switched from arg to exp dataset, so all splits need retranslation.
+# dev/test: used as experiment inputs; train: used to build retrieval index.
+echo "=== Translating CasiMedicos-exp (dev + test for experiments; train for retrieval index) ==="
 python scripts/translate_to_basque.py \
   --input \
-    data/processed/casimedicos/train.jsonl \
     data/processed/casimedicos/dev.jsonl \
+    data/processed/casimedicos/test.jsonl \
+    data/processed/casimedicos/train.jsonl \
   --output \
-    data/processed/casimedicos_eu/train.jsonl \
     data/processed/casimedicos_eu/dev.jsonl \
+    data/processed/casimedicos_eu/test.jsonl \
+    data/processed/casimedicos_eu/train.jsonl \
   --model "$EU_TRANSLATION_MODEL" \
   --batch-size 32
 
@@ -88,14 +94,16 @@ casi_train = Path("data/processed/casimedicos_eu/train.jsonl").read_text(encodin
 sns_dev    = Path("data/processed/sns1064_eu/dev.jsonl").read_text(encoding="utf-8").splitlines()
 casi_dev   = Path("data/processed/casimedicos_eu/dev.jsonl").read_text(encoding="utf-8").splitlines()
 sns_test   = Path("data/processed/sns1064_eu/test.jsonl").read_text(encoding="utf-8").splitlines()
+casi_test  = Path("data/processed/casimedicos_eu/test.jsonl").read_text(encoding="utf-8").splitlines()
 
 out = Path("data/processed/sns1064_casimedicos_eu")
 out.mkdir(parents=True, exist_ok=True)
 (out / "train.jsonl").write_text("\n".join(sns_train + casi_train) + "\n", encoding="utf-8")
 (out / "dev.jsonl").write_text("\n".join(sns_dev + casi_dev) + "\n", encoding="utf-8")
-(out / "test.jsonl").write_text("\n".join(sns_test) + "\n", encoding="utf-8")
+(out / "test.jsonl").write_text("\n".join(sns_test + casi_test) + "\n", encoding="utf-8")
 print(f"Combined train: {len(sns_train) + len(casi_train)} records")
 print(f"Combined dev:   {len(sns_dev) + len(casi_dev)} records")
+print(f"Combined test:  {len(sns_test) + len(casi_test)} records")
 PYEOF
 
 echo "=== Validating translated datasets ==="
@@ -106,6 +114,7 @@ from pathlib import Path
 paths = [
     Path("data/processed/sns1064_eu/dev.jsonl"),
     Path("data/processed/casimedicos_eu/dev.jsonl"),
+    Path("data/processed/casimedicos_eu/test.jsonl"),
     Path("data/processed/sns1064_casimedicos_eu/dev.jsonl"),
 ]
 bad_fragments = ["iraunkort", "zenbateko", "behintzat", "ezagutzera", "iragarki"]

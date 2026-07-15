@@ -31,6 +31,8 @@ nvidia-smi || true
 echo "=== SNS1064 EU index ==="
 python scripts/build_retrieval_index.py \
   --input data/processed/sns1064_eu/train.jsonl \
+         data/processed/sns1064_eu/dev.jsonl \
+         data/processed/sns1064_eu/test.jsonl \
   --output-dir models/retrieval/sns1064_eu_train_multilingual_e5_large \
   --backend dense \
   --model intfloat/multilingual-e5-large \
@@ -40,6 +42,8 @@ python scripts/build_retrieval_index.py \
 echo "=== CasiMedicos EU index ==="
 python scripts/build_retrieval_index.py \
   --input data/processed/casimedicos_eu/train.jsonl \
+         data/processed/casimedicos_eu/dev.jsonl \
+         data/processed/casimedicos_eu/test.jsonl \
   --output-dir models/retrieval/casimedicos_eu_train_multilingual_e5_large \
   --backend dense \
   --model intfloat/multilingual-e5-large \
@@ -49,6 +53,8 @@ python scripts/build_retrieval_index.py \
 echo "=== SNS1064+CasiMedicos EU combined index ==="
 python scripts/build_retrieval_index.py \
   --input data/processed/sns1064_casimedicos_eu/train.jsonl \
+         data/processed/sns1064_casimedicos_eu/dev.jsonl \
+         data/processed/sns1064_casimedicos_eu/test.jsonl \
   --output-dir models/retrieval/sns1064_casimedicos_eu_train_multilingual_e5_large \
   --backend dense \
   --model intfloat/multilingual-e5-large \

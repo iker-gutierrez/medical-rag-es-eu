@@ -1,0 +1,102 @@
+#!/bin/bash
+#SBATCH --job-name=eu-v2-sf-gen
+#SBATCH --array=0-65%2
+#SBATCH --cpus-per-task=8
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --time=48:00:00
+#SBATCH --mem=64GB
+#SBATCH --gres=gpu:1
+#SBATCH --output=/home/igutierrez134/med_rag_thesis/experiments/slurm_logs/llama_latxa_eu_v2_sf_generation_%A_%a.log
+#SBATCH --error=/home/igutierrez134/med_rag_thesis/experiments/slurm_logs/llama_latxa_eu_v2_sf_generation_%A_%a.err
+#SBATCH --chdir=/home/igutierrez134/med_rag_thesis
+#SBATCH --mail-type=END,FAIL,REQUEUE
+#SBATCH --mail-user=igutierrez134@ikasle.ehu.eus
+
+set -euo pipefail
+
+CONFIGS=(
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1062_llama31_8b_no_rag_extractive_sns1064_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1063_llama31_8b_rag_e5_topk1_extractive_sns1064_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1064_llama31_8b_rag_e5_topk3_extractive_sns1064_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1065_llama31_8b_rag_e5_topk5_extractive_sns1064_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1066_llama31_8b_rag_e5_rerank1_extractive_sns1064_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1067_llama31_8b_rag_e5_rerank3_extractive_sns1064_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1068_llama31_8b_rag_e5_rerank5_extractive_sns1064_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1069_llama31_8b_3shot_no_rag_extractive_sns1064_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1070_llama31_8b_rag_3shot_e5_rerank5_extractive_sns1064_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1071_llama31_8b_rag_cross_domain_e5_rerank5_extractive_sns1064_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1072_llama31_8b_rag_mixed_e5_rerank5_extractive_sns1064_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1073_latxa_llama31_8b_no_rag_extractive_sns1064_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1074_latxa_llama31_8b_rag_e5_topk1_extractive_sns1064_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1075_latxa_llama31_8b_rag_e5_topk3_extractive_sns1064_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1076_latxa_llama31_8b_rag_e5_topk5_extractive_sns1064_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1077_latxa_llama31_8b_rag_e5_rerank1_extractive_sns1064_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1078_latxa_llama31_8b_rag_e5_rerank3_extractive_sns1064_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1079_latxa_llama31_8b_rag_e5_rerank5_extractive_sns1064_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1080_latxa_llama31_8b_3shot_no_rag_extractive_sns1064_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1081_latxa_llama31_8b_rag_3shot_e5_rerank5_extractive_sns1064_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1082_latxa_llama31_8b_rag_cross_domain_e5_rerank5_extractive_sns1064_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1083_latxa_llama31_8b_rag_mixed_e5_rerank5_extractive_sns1064_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1084_llama31_8b_no_rag_extractive_casimedicos_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1085_llama31_8b_rag_e5_topk1_extractive_casimedicos_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1086_llama31_8b_rag_e5_topk3_extractive_casimedicos_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1087_llama31_8b_rag_e5_topk5_extractive_casimedicos_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1088_llama31_8b_rag_e5_rerank1_extractive_casimedicos_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1089_llama31_8b_rag_e5_rerank3_extractive_casimedicos_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1090_llama31_8b_rag_e5_rerank5_extractive_casimedicos_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1091_llama31_8b_3shot_no_rag_extractive_casimedicos_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1092_llama31_8b_rag_3shot_e5_rerank5_extractive_casimedicos_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1093_llama31_8b_rag_cross_domain_e5_rerank5_extractive_casimedicos_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1094_llama31_8b_rag_mixed_e5_rerank5_extractive_casimedicos_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1095_latxa_llama31_8b_no_rag_extractive_casimedicos_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1096_latxa_llama31_8b_rag_e5_topk1_extractive_casimedicos_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1097_latxa_llama31_8b_rag_e5_topk3_extractive_casimedicos_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1098_latxa_llama31_8b_rag_e5_topk5_extractive_casimedicos_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1099_latxa_llama31_8b_rag_e5_rerank1_extractive_casimedicos_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1100_latxa_llama31_8b_rag_e5_rerank3_extractive_casimedicos_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1101_latxa_llama31_8b_rag_e5_rerank5_extractive_casimedicos_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1102_latxa_llama31_8b_3shot_no_rag_extractive_casimedicos_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1103_latxa_llama31_8b_rag_3shot_e5_rerank5_extractive_casimedicos_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1104_latxa_llama31_8b_rag_cross_domain_e5_rerank5_extractive_casimedicos_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1105_latxa_llama31_8b_rag_mixed_e5_rerank5_extractive_casimedicos_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1106_llama31_8b_no_rag_extractive_mixed_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1107_llama31_8b_rag_e5_topk1_extractive_mixed_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1108_llama31_8b_rag_e5_topk3_extractive_mixed_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1109_llama31_8b_rag_e5_topk5_extractive_mixed_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1110_llama31_8b_rag_e5_rerank1_extractive_mixed_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1111_llama31_8b_rag_e5_rerank3_extractive_mixed_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1112_llama31_8b_rag_e5_rerank5_extractive_mixed_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1113_llama31_8b_3shot_no_rag_extractive_mixed_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1114_llama31_8b_rag_3shot_e5_rerank5_extractive_mixed_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1115_llama31_8b_rag_sns1064_e5_rerank5_extractive_mixed_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1116_llama31_8b_rag_casimedicos_e5_rerank5_extractive_mixed_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1117_latxa_llama31_8b_no_rag_extractive_mixed_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1118_latxa_llama31_8b_rag_e5_topk1_extractive_mixed_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1119_latxa_llama31_8b_rag_e5_topk3_extractive_mixed_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1120_latxa_llama31_8b_rag_e5_topk5_extractive_mixed_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1121_latxa_llama31_8b_rag_e5_rerank1_extractive_mixed_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1122_latxa_llama31_8b_rag_e5_rerank3_extractive_mixed_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1123_latxa_llama31_8b_rag_e5_rerank5_extractive_mixed_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1124_latxa_llama31_8b_3shot_no_rag_extractive_mixed_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1125_latxa_llama31_8b_rag_3shot_e5_rerank5_extractive_mixed_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1126_latxa_llama31_8b_rag_sns1064_e5_rerank5_extractive_mixed_eu_sf_dev.json
+  /home/igutierrez134/med_rag_thesis/configs/experiments/1127_latxa_llama31_8b_rag_casimedicos_e5_rerank5_extractive_mixed_eu_sf_dev.json
+)
+
+CONFIG="${CONFIGS[$SLURM_ARRAY_TASK_ID]}"
+
+source /home/igutierrez134/envs/med_rag_thesis/bin/activate
+
+export HF_HOME="/home/igutierrez134/.cache/huggingface"
+export TRANSFORMERS_CACHE="/home/igutierrez134/.cache/huggingface"
+export HF_HUB_CACHE="/home/igutierrez134/.cache/huggingface"
+export TOKENIZERS_PARALLELISM=false
+
+echo "eu-v2-sf-gen started on $(hostname) at $(date)"
+echo "CONFIG=${CONFIG}"
+nvidia-smi || true
+
+python scripts/run_generation_from_config.py --config "$CONFIG" --runs 1
+
+echo "eu-v2-sf-gen finished at $(date)"

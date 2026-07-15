@@ -10,6 +10,8 @@
 #SBATCH --output=/home/igutierrez134/med_rag_thesis/experiments/slurm_logs/abl_meanq_%A_%a.log
 #SBATCH --error=/home/igutierrez134/med_rag_thesis/experiments/slurm_logs/abl_meanq_%A_%a.err
 #SBATCH --chdir=/home/igutierrez134/med_rag_thesis
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=igutierrez134@ikasle.ehu.eus
 set -euo pipefail
 mapfile -t TASKS < /home/igutierrez134/med_rag_thesis/experiments/meanq_rerun_tasks.txt
 ENTRY="${TASKS[$SLURM_ARRAY_TASK_ID]}"

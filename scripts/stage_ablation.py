@@ -125,6 +125,8 @@ def submit_rerun_array(n: int, task_file: Path) -> str:
 #SBATCH --output={ROOT}/experiments/slurm_logs/abl_meanq_%A_%a.log
 #SBATCH --error={ROOT}/experiments/slurm_logs/abl_meanq_%A_%a.err
 #SBATCH --chdir={ROOT}
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=igutierrez134@ikasle.ehu.eus
 set -euo pipefail
 mapfile -t TASKS < {task_file}
 ENTRY="${{TASKS[$SLURM_ARRAY_TASK_ID]}}"

@@ -1,0 +1,102 @@
+#!/bin/bash
+#SBATCH --job-name=qwen35_4b_v2-gen
+#SBATCH --array=0-65%2
+#SBATCH --cpus-per-task=8
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --time=24:00:00
+#SBATCH --mem=64GB
+#SBATCH --gres=gpu:1
+#SBATCH --output=/home/igutierrez134/med_rag_thesis/experiments/slurm_logs/qwen35_4b_v2_generation_%A_%a.log
+#SBATCH --error=/home/igutierrez134/med_rag_thesis/experiments/slurm_logs/qwen35_4b_v2_generation_%A_%a.err
+#SBATCH --chdir=/home/igutierrez134/med_rag_thesis
+#SBATCH --mail-type=END,FAIL,REQUEUE
+#SBATCH --mail-user=igutierrez134@ikasle.ehu.eus
+
+set -euo pipefail
+
+CONFIGS=(
+  configs/experiments/732_qwen35_4b_no_rag_no_think_extractive_sns1064_dev.json
+  configs/experiments/733_qwen35_4b_rag_e5_topk1_no_think_extractive_sns1064_dev.json
+  configs/experiments/734_qwen35_4b_rag_e5_topk3_no_think_extractive_sns1064_dev.json
+  configs/experiments/735_qwen35_4b_rag_e5_topk5_no_think_extractive_sns1064_dev.json
+  configs/experiments/736_qwen35_4b_rag_e5_rerank1_no_think_extractive_sns1064_dev.json
+  configs/experiments/737_qwen35_4b_rag_e5_rerank3_no_think_extractive_sns1064_dev.json
+  configs/experiments/738_qwen35_4b_rag_e5_rerank5_no_think_extractive_sns1064_dev.json
+  configs/experiments/739_qwen35_4b_3shot_no_rag_no_think_extractive_sns1064_dev.json
+  configs/experiments/740_qwen35_4b_rag_cross_domain_e5_rerank5_no_think_extractive_sns1064_dev.json
+  configs/experiments/741_qwen35_4b_rag_mixed_e5_rerank5_no_think_extractive_sns1064_dev.json
+  configs/experiments/742_qwen35_4b_rag_3shot_e5_rerank5_no_think_extractive_sns1064_dev.json
+  configs/experiments/743_qwen35_4b_no_rag_think_extractive_sns1064_dev.json
+  configs/experiments/744_qwen35_4b_rag_e5_topk1_think_extractive_sns1064_dev.json
+  configs/experiments/745_qwen35_4b_rag_e5_topk3_think_extractive_sns1064_dev.json
+  configs/experiments/746_qwen35_4b_rag_e5_topk5_think_extractive_sns1064_dev.json
+  configs/experiments/747_qwen35_4b_rag_e5_rerank1_think_extractive_sns1064_dev.json
+  configs/experiments/748_qwen35_4b_rag_e5_rerank3_think_extractive_sns1064_dev.json
+  configs/experiments/749_qwen35_4b_rag_e5_rerank5_think_extractive_sns1064_dev.json
+  configs/experiments/750_qwen35_4b_3shot_no_rag_think_extractive_sns1064_dev.json
+  configs/experiments/751_qwen35_4b_rag_cross_domain_e5_rerank5_think_extractive_sns1064_dev.json
+  configs/experiments/752_qwen35_4b_rag_mixed_e5_rerank5_think_extractive_sns1064_dev.json
+  configs/experiments/753_qwen35_4b_rag_3shot_e5_rerank5_think_extractive_sns1064_dev.json
+  configs/experiments/754_qwen35_4b_no_rag_no_think_extractive_casimedicos_dev.json
+  configs/experiments/755_qwen35_4b_rag_e5_topk1_no_think_extractive_casimedicos_dev.json
+  configs/experiments/756_qwen35_4b_rag_e5_topk3_no_think_extractive_casimedicos_dev.json
+  configs/experiments/757_qwen35_4b_rag_e5_topk5_no_think_extractive_casimedicos_dev.json
+  configs/experiments/758_qwen35_4b_rag_e5_rerank1_no_think_extractive_casimedicos_dev.json
+  configs/experiments/759_qwen35_4b_rag_e5_rerank3_no_think_extractive_casimedicos_dev.json
+  configs/experiments/760_qwen35_4b_rag_e5_rerank5_no_think_extractive_casimedicos_dev.json
+  configs/experiments/761_qwen35_4b_3shot_no_rag_no_think_extractive_casimedicos_dev.json
+  configs/experiments/762_qwen35_4b_rag_cross_domain_e5_rerank5_no_think_extractive_casimedicos_dev.json
+  configs/experiments/763_qwen35_4b_rag_mixed_e5_rerank5_no_think_extractive_casimedicos_dev.json
+  configs/experiments/764_qwen35_4b_rag_3shot_e5_rerank5_no_think_extractive_casimedicos_dev.json
+  configs/experiments/765_qwen35_4b_no_rag_think_extractive_casimedicos_dev.json
+  configs/experiments/766_qwen35_4b_rag_e5_topk1_think_extractive_casimedicos_dev.json
+  configs/experiments/767_qwen35_4b_rag_e5_topk3_think_extractive_casimedicos_dev.json
+  configs/experiments/768_qwen35_4b_rag_e5_topk5_think_extractive_casimedicos_dev.json
+  configs/experiments/769_qwen35_4b_rag_e5_rerank1_think_extractive_casimedicos_dev.json
+  configs/experiments/770_qwen35_4b_rag_e5_rerank3_think_extractive_casimedicos_dev.json
+  configs/experiments/771_qwen35_4b_rag_e5_rerank5_think_extractive_casimedicos_dev.json
+  configs/experiments/772_qwen35_4b_3shot_no_rag_think_extractive_casimedicos_dev.json
+  configs/experiments/773_qwen35_4b_rag_cross_domain_e5_rerank5_think_extractive_casimedicos_dev.json
+  configs/experiments/774_qwen35_4b_rag_mixed_e5_rerank5_think_extractive_casimedicos_dev.json
+  configs/experiments/775_qwen35_4b_rag_3shot_e5_rerank5_think_extractive_casimedicos_dev.json
+  configs/experiments/776_qwen35_4b_no_rag_no_think_extractive_mixed_dev.json
+  configs/experiments/777_qwen35_4b_rag_e5_topk1_no_think_extractive_mixed_dev.json
+  configs/experiments/778_qwen35_4b_rag_e5_topk3_no_think_extractive_mixed_dev.json
+  configs/experiments/779_qwen35_4b_rag_e5_topk5_no_think_extractive_mixed_dev.json
+  configs/experiments/780_qwen35_4b_rag_e5_rerank1_no_think_extractive_mixed_dev.json
+  configs/experiments/781_qwen35_4b_rag_e5_rerank3_no_think_extractive_mixed_dev.json
+  configs/experiments/782_qwen35_4b_rag_e5_rerank5_no_think_extractive_mixed_dev.json
+  configs/experiments/783_qwen35_4b_3shot_no_rag_no_think_extractive_mixed_dev.json
+  configs/experiments/784_qwen35_4b_rag_sns1064_e5_rerank5_no_think_extractive_mixed_dev.json
+  configs/experiments/785_qwen35_4b_rag_casimedicos_e5_rerank5_no_think_extractive_mixed_dev.json
+  configs/experiments/786_qwen35_4b_rag_3shot_e5_rerank5_no_think_extractive_mixed_dev.json
+  configs/experiments/787_qwen35_4b_no_rag_think_extractive_mixed_dev.json
+  configs/experiments/788_qwen35_4b_rag_e5_topk1_think_extractive_mixed_dev.json
+  configs/experiments/789_qwen35_4b_rag_e5_topk3_think_extractive_mixed_dev.json
+  configs/experiments/790_qwen35_4b_rag_e5_topk5_think_extractive_mixed_dev.json
+  configs/experiments/791_qwen35_4b_rag_e5_rerank1_think_extractive_mixed_dev.json
+  configs/experiments/792_qwen35_4b_rag_e5_rerank3_think_extractive_mixed_dev.json
+  configs/experiments/793_qwen35_4b_rag_e5_rerank5_think_extractive_mixed_dev.json
+  configs/experiments/794_qwen35_4b_3shot_no_rag_think_extractive_mixed_dev.json
+  configs/experiments/795_qwen35_4b_rag_sns1064_e5_rerank5_think_extractive_mixed_dev.json
+  configs/experiments/796_qwen35_4b_rag_casimedicos_e5_rerank5_think_extractive_mixed_dev.json
+  configs/experiments/797_qwen35_4b_rag_3shot_e5_rerank5_think_extractive_mixed_dev.json
+)
+
+CONFIG="${CONFIGS[$SLURM_ARRAY_TASK_ID]}"
+
+source /home/igutierrez134/envs/med_rag_thesis/bin/activate
+
+export HF_HOME="/home/igutierrez134/.cache/huggingface"
+export TRANSFORMERS_CACHE="/home/igutierrez134/.cache/huggingface"
+export HF_HUB_CACHE="/home/igutierrez134/.cache/huggingface"
+export TOKENIZERS_PARALLELISM=false
+
+echo "Qwen3.5-4B generation started on $(hostname) at $(date)"
+echo "CONFIG=${CONFIG}"
+nvidia-smi || true
+
+python scripts/run_generation_from_config.py --config "$CONFIG"
+
+echo "Qwen3.5-4B generation finished at $(date)"

@@ -32,6 +32,8 @@ nvidia-smi || true
 
 python scripts/build_retrieval_index.py \
   --input data/processed/sns1064/train.jsonl \
+         data/processed/sns1064/dev.jsonl \
+         data/processed/sns1064/test.jsonl \
   --output-dir models/retrieval/sns1064_train_multilingual_e5_large \
   --backend dense \
   --model intfloat/multilingual-e5-large \

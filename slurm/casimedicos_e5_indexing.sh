@@ -32,6 +32,8 @@ nvidia-smi || true
 
 python scripts/build_retrieval_index.py \
   --input data/processed/casimedicos/train.jsonl \
+         data/processed/casimedicos/dev.jsonl \
+         data/processed/casimedicos/test.jsonl \
   --output-dir models/retrieval/casimedicos_train_multilingual_e5_large \
   --backend dense \
   --model intfloat/multilingual-e5-large \
