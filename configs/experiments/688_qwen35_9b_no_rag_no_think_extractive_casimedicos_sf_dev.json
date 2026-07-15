@@ -1,0 +1,21 @@
+{
+  "experiment_name": "qwen35_9b_no_rag_no_think_extractive_casimedicos_sf",
+  "input": "data/processed/casimedicos/dev.jsonl",
+  "output": "experiments/runs/688_qwen35_9b_no_rag_no_think_extractive_casimedicos_sf_dev/predictions.jsonl",
+  "initial_predictions": "experiments/runs/622_qwen35_9b_no_rag_no_think_extractive_casimedicos_dev/predictions.jsonl",
+  "model": "Qwen/Qwen3.5-9B",
+  "prompt_style": "extractive",
+  "think": false,
+  "self_feedback": true,
+  "temperature": 1.0,
+  "trust_remote_code": true,
+  "max_new_tokens": 2048,
+  "feedback_max_new_tokens": 2048,
+  "retrieval_top_k": 0,
+  "few_shot_k": 0,
+  "top_p": 0.95,
+  "top_k": 20,
+  "min_p": 0,
+  "presence_penalty": 1.5,
+  "num_runs": 3
+}

@@ -5,7 +5,7 @@
   "self_feedback": true,
   "max_new_tokens": 256,
   "feedback_max_new_tokens": 256,
-  "temperature": 0.0,
+  "temperature": 0.6,
   "trust_remote_code": true,
   "input": "data/processed/sns1064_casimedicos_eu/dev.jsonl",
   "experiment_name": "latxa7b_rag_e5_rerank1_extractive_sf_mixed_eu",
@@ -15,5 +15,7 @@
   "reranker_model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
   "reranker_top_k": 1,
   "reranker_device": "cpu",
-  "few_shot_k": 0
+  "few_shot_k": 0,
+  "top_p": 0.9,
+  "num_runs": 3
 }

@@ -8,7 +8,9 @@
   "self_feedback": true,
   "max_new_tokens": 512,
   "feedback_max_new_tokens": 512,
-  "temperature": 0.0,
+  "temperature": 0.7,
   "retrieval_index": "models/retrieval/casimedicos_train_multilingual_e5_large",
-  "retrieval_top_k": 1
+  "retrieval_top_k": 1,
+  "top_p": 0.95,
+  "num_runs": 3
 }

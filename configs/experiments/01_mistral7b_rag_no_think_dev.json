@@ -7,5 +7,7 @@
   "retrieval_top_k": 3,
   "think": false,
   "max_new_tokens": 256,
-  "temperature": 0.0
+  "temperature": 0.7,
+  "top_p": 0.95,
+  "num_runs": 3
 }

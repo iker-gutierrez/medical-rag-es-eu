@@ -1,0 +1,20 @@
+{
+  "experiment_name": "llama31_8b_3shot_no_rag_extractive_mixed_eu",
+  "input": "/tmp/claude-1034/-home-igutierrez134/822972dc-80bc-4f28-8df8-cdd479f4aca8/scratchpad/truncation_reruns/1047_llama31_8b_3shot_no_rag_extractive_mixed_eu_dev_seed44_retry_input.jsonl",
+  "output": "experiments/runs/1047_llama31_8b_3shot_no_rag_extractive_mixed_eu_dev_seed44_retry/predictions.jsonl",
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "language": "eu",
+  "prompt_style": "extractive",
+  "think": false,
+  "self_feedback": true,
+  "max_new_tokens": 8000,
+  "temperature": 0.6,
+  "few_shot_file": "data/processed/sns1064_casimedicos_eu/train.jsonl",
+  "few_shot_k": 3,
+  "few_shot_mode": "random",
+  "retrieval_top_k": 0,
+  "top_p": 0.9,
+  "num_runs": 1,
+  "feedback_max_new_tokens": 8000,
+  "seed": 44
+}

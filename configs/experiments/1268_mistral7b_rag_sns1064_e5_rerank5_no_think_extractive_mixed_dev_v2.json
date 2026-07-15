@@ -1,0 +1,22 @@
+{
+  "experiment_name": "mistral7b_rag_sns1064_e5_rerank5_no_think_extractive_mixed",
+  "input": "data/processed/sns1064_casimedicos/dev.jsonl",
+  "output": "experiments/runs/1268_mistral7b_rag_sns1064_e5_rerank5_no_think_extractive_mixed_dev_v2/predictions.jsonl",
+  "model": "mistralai/Mistral-7B-Instruct-v0.3",
+  "prompt_style": "extractive",
+  "think": false,
+  "self_feedback": true,
+  "max_new_tokens": 1750,
+  "num_runs": 1,
+  "temperature": 0.7,
+  "top_p": 0.95,
+  "retrieval_index": "models/retrieval/sns1064_train_multilingual_e5_large",
+  "retrieval_top_k": 5,
+  "feedback_max_new_tokens": 1750,
+  "max_model_len": 13312,
+  "min_p": 0.05,
+  "presence_penalty": 0.1,
+  "repetition_detection_max_pattern": 20,
+  "repetition_detection_min_pattern": 1,
+  "repetition_detection_min_count": 8
+}

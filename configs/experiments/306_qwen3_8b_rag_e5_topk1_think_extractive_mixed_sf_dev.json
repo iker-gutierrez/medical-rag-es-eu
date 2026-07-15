@@ -6,10 +6,15 @@
   "prompt_style": "extractive",
   "think": true,
   "self_feedback": true,
-  "temperature": 0.0,
+  "temperature": 1.0,
   "trust_remote_code": true,
   "retrieval_index": "models/retrieval/sns1064_casimedicos_train_multilingual_e5_large",
   "retrieval_top_k": 1,
   "max_new_tokens": 1024,
-  "feedback_max_new_tokens": 512
+  "feedback_max_new_tokens": 512,
+  "top_p": 0.95,
+  "top_k": 20,
+  "min_p": 0,
+  "presence_penalty": 1.5,
+  "num_runs": 3
 }

@@ -6,7 +6,7 @@
   "self_feedback": true,
   "max_new_tokens": 256,
   "feedback_max_new_tokens": 256,
-  "temperature": 0.0,
+  "temperature": 0.6,
   "input": "data/processed/sns1064_casimedicos_eu/dev.jsonl",
   "retrieval_index": "models/retrieval/sns1064_eu_train_multilingual_e5_large",
   "retrieval_top_k": 15,
@@ -14,5 +14,7 @@
   "reranker_top_k": 5,
   "reranker_device": "cpu",
   "experiment_name": "llama31_8b_rag_sns1064_e5_rerank5_extractive_mixed_eu",
-  "output": "experiments/runs/159_llama31_8b_rag_sns1064_e5_rerank5_extractive_mixed_eu_dev/predictions.jsonl"
+  "output": "experiments/runs/159_llama31_8b_rag_sns1064_e5_rerank5_extractive_mixed_eu_dev/predictions.jsonl",
+  "top_p": 0.9,
+  "num_runs": 3
 }

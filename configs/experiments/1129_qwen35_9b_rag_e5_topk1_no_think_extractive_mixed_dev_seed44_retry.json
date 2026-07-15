@@ -1,0 +1,21 @@
+{
+  "experiment_name": "qwen35_9b_rag_e5_topk1_no_think_extractive_mixed",
+  "input": "/tmp/claude-1034/-home-igutierrez134/822972dc-80bc-4f28-8df8-cdd479f4aca8/scratchpad/truncation_reruns/1129_qwen35_9b_rag_e5_topk1_no_think_extractive_mixed_dev_seed44_retry_input.jsonl",
+  "output": "experiments/runs/1129_qwen35_9b_rag_e5_topk1_no_think_extractive_mixed_dev_seed44_retry/predictions.jsonl",
+  "model": "Qwen/Qwen3.5-9B",
+  "prompt_style": "extractive",
+  "think": false,
+  "self_feedback": true,
+  "max_new_tokens": 8000,
+  "num_runs": 1,
+  "temperature": 1.0,
+  "top_p": 0.95,
+  "top_k": 20,
+  "min_p": 0,
+  "presence_penalty": 0,
+  "trust_remote_code": true,
+  "retrieval_index": "models/retrieval/sns1064_casimedicos_train_multilingual_e5_large",
+  "retrieval_top_k": 1,
+  "seed": 44,
+  "feedback_max_new_tokens": 8000
+}

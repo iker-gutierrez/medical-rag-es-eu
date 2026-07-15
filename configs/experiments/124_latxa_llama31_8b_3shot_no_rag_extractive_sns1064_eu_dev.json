@@ -6,7 +6,7 @@
   "self_feedback": true,
   "max_new_tokens": 256,
   "feedback_max_new_tokens": 256,
-  "temperature": 0.0,
+  "temperature": 0.6,
   "input": "data/processed/sns1064_eu/dev.jsonl",
   "trust_remote_code": true,
   "few_shot_file": "data/processed/sns1064_eu/train.jsonl",
@@ -14,5 +14,7 @@
   "few_shot_mode": "random",
   "retrieval_top_k": 0,
   "experiment_name": "latxa_llama31_8b_3shot_no_rag_extractive_sns1064_eu",
-  "output": "experiments/runs/124_latxa_llama31_8b_3shot_no_rag_extractive_sns1064_eu_dev/predictions.jsonl"
+  "output": "experiments/runs/124_latxa_llama31_8b_3shot_no_rag_extractive_sns1064_eu_dev/predictions.jsonl",
+  "top_p": 0.9,
+  "num_runs": 3
 }

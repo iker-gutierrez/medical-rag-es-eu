@@ -1,0 +1,17 @@
+{
+  "experiment_name": "latxa_llama31_8b_no_rag_extractive_sns1064_eu",
+  "input": "data/processed/sns1064_eu/dev.jsonl",
+  "output": "experiments/runs/1007_latxa_llama31_8b_no_rag_extractive_sns1064_eu_dev/predictions.jsonl",
+  "model": "HiTZ/Latxa-Llama-3.1-8B-Instruct",
+  "language": "eu",
+  "prompt_style": "extractive",
+  "think": false,
+  "self_feedback": false,
+  "max_new_tokens": 2048,
+  "temperature": 0.6,
+  "trust_remote_code": true,
+  "few_shot_k": 0,
+  "retrieval_top_k": 0,
+  "top_p": 0.9,
+  "num_runs": 3
+}

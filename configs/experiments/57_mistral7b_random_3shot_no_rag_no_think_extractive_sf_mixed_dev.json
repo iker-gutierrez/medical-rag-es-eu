@@ -8,9 +8,11 @@
   "self_feedback": true,
   "max_new_tokens": 256,
   "feedback_max_new_tokens": 256,
-  "temperature": 0.0,
+  "temperature": 0.7,
   "retrieval_top_k": 0,
   "few_shot_file": "data/processed/sns1064_casimedicos/train.jsonl",
   "few_shot_k": 3,
-  "few_shot_mode": "random"
+  "few_shot_mode": "random",
+  "top_p": 0.95,
+  "num_runs": 3
 }

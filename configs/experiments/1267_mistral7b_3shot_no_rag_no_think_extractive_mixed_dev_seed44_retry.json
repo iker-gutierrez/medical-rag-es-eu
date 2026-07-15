@@ -1,0 +1,19 @@
+{
+  "experiment_name": "mistral7b_3shot_no_rag_no_think_extractive_mixed",
+  "input": "/tmp/claude-1034/-home-igutierrez134/822972dc-80bc-4f28-8df8-cdd479f4aca8/scratchpad/truncation_reruns/1267_mistral7b_3shot_no_rag_no_think_extractive_mixed_dev_seed44_retry_input.jsonl",
+  "output": "experiments/runs/1267_mistral7b_3shot_no_rag_no_think_extractive_mixed_dev_seed44_retry/predictions.jsonl",
+  "model": "mistralai/Mistral-7B-Instruct-v0.3",
+  "prompt_style": "extractive",
+  "think": false,
+  "self_feedback": true,
+  "max_new_tokens": 8000,
+  "num_runs": 1,
+  "temperature": 0.7,
+  "top_p": 0.95,
+  "retrieval_top_k": 0,
+  "few_shot_file": "data/processed/sns1064_casimedicos/train.jsonl",
+  "few_shot_k": 3,
+  "few_shot_mode": "random",
+  "seed": 44,
+  "feedback_max_new_tokens": 8000
+}

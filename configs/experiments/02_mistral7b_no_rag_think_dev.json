@@ -7,5 +7,7 @@
   "few_shot_k": 0,
   "retrieval_top_k": 0,
   "max_new_tokens": 512,
-  "temperature": 0.0
+  "temperature": 0.7,
+  "top_p": 0.95,
+  "num_runs": 3
 }

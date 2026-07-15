@@ -99,6 +99,42 @@ MODELS = {
             "Casi": ("1279", "qwen35_9b_rag_casimedicos_e5_rerank5_think_extractive_mixed_dev"),
         },
     },
+    "llama31_8b": {
+        "baseline": ("1040", "llama31_8b_no_rag_extractive_mixed_eu_dev"),
+        "lang": "eu", "task": "mixed_eu_dev", "tag": "extractive",
+        "retrieval": {
+            "e5 top1": ("1041", "llama31_8b_rag_e5_topk1_extractive_mixed_eu_dev"),
+            "e5 top3": ("1042", "llama31_8b_rag_e5_topk3_extractive_mixed_eu_dev"),
+            "e5 top5": ("1043", "llama31_8b_rag_e5_topk5_extractive_mixed_eu_dev"),
+            "rerank1": ("1044", "llama31_8b_rag_e5_rerank1_extractive_mixed_eu_dev"),
+            "rerank3": ("1045", "llama31_8b_rag_e5_rerank3_extractive_mixed_eu_dev"),
+            "rerank5": ("1046", "llama31_8b_rag_e5_rerank5_extractive_mixed_eu_dev"),
+        },
+        "fewshot_no_rag": ("1047", "llama31_8b_3shot_no_rag_extractive_mixed_eu_dev"),
+        "row8": ("1048", "llama31_8b_rag_3shot_e5_rerank5_extractive_mixed_eu_dev"),
+        "domain": {
+            "SNS": ("1049", "llama31_8b_rag_sns1064_e5_rerank5_extractive_mixed_eu_dev"),
+            "Casi": ("1050", "llama31_8b_rag_casimedicos_e5_rerank5_extractive_mixed_eu_dev"),
+        },
+    },
+    "latxa": {
+        "baseline": ("1051", "latxa_llama31_8b_no_rag_extractive_mixed_eu_dev"),
+        "lang": "eu", "task": "mixed_eu_dev", "tag": "extractive",
+        "retrieval": {
+            "e5 top1": ("1052", "latxa_llama31_8b_rag_e5_topk1_extractive_mixed_eu_dev"),
+            "e5 top3": ("1053", "latxa_llama31_8b_rag_e5_topk3_extractive_mixed_eu_dev"),
+            "e5 top5": ("1054", "latxa_llama31_8b_rag_e5_topk5_extractive_mixed_eu_dev"),
+            "rerank1": ("1055", "latxa_llama31_8b_rag_e5_rerank1_extractive_mixed_eu_dev"),
+            "rerank3": ("1056", "latxa_llama31_8b_rag_e5_rerank3_extractive_mixed_eu_dev"),
+            "rerank5": ("1057", "latxa_llama31_8b_rag_e5_rerank5_extractive_mixed_eu_dev"),
+        },
+        "fewshot_no_rag": ("1058", "latxa_llama31_8b_3shot_no_rag_extractive_mixed_eu_dev"),
+        "row8": ("1059", "latxa_llama31_8b_rag_3shot_e5_rerank5_extractive_mixed_eu_dev"),
+        "domain": {
+            "SNS": ("1060", "latxa_llama31_8b_rag_sns1064_e5_rerank5_extractive_mixed_eu_dev"),
+            "Casi": ("1061", "latxa_llama31_8b_rag_casimedicos_e5_rerank5_extractive_mixed_eu_dev"),
+        },
+    },
 }
 
 

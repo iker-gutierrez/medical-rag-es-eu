@@ -1,0 +1,23 @@
+{
+  "experiment_name": "qwen35_9b_rag_e5_topk5_no_think_extractive_mixed",
+  "input": "data/processed/sns1064_casimedicos/dev.jsonl",
+  "output": "experiments/runs/1131_qwen35_9b_rag_e5_topk5_no_think_extractive_mixed_dev/predictions.jsonl",
+  "model": "Qwen/Qwen3.5-9B",
+  "prompt_style": "extractive",
+  "think": false,
+  "self_feedback": true,
+  "max_new_tokens": 2048,
+  "num_runs": 1,
+  "temperature": 1.0,
+  "top_p": 0.95,
+  "top_k": 20,
+  "min_p": 0,
+  "presence_penalty": 0,
+  "trust_remote_code": true,
+  "retrieval_index": "models/retrieval/sns1064_casimedicos_train_multilingual_e5_large",
+  "retrieval_top_k": 5,
+  "max_truncation_retries": 3,
+  "repetition_detection_max_pattern": 20,
+  "repetition_detection_min_pattern": 1,
+  "repetition_detection_min_count": 8
+}

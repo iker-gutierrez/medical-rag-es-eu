@@ -7,7 +7,7 @@
   "prompt_style": "extractive",
   "think": false,
   "self_feedback": true,
-  "temperature": 0.0,
+  "temperature": 1.0,
   "trust_remote_code": true,
   "max_new_tokens": 1024,
   "feedback_max_new_tokens": 512,
@@ -18,5 +18,10 @@
   "reranker_device": "cpu",
   "few_shot_file": "data/processed/sns1064/train.jsonl",
   "few_shot_k": 3,
-  "few_shot_mode": "random"
+  "few_shot_mode": "random",
+  "top_p": 0.95,
+  "top_k": 20,
+  "min_p": 0,
+  "presence_penalty": 1.5,
+  "num_runs": 3
 }

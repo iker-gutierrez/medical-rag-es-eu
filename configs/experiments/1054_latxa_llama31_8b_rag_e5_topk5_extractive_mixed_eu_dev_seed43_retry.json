@@ -1,0 +1,19 @@
+{
+  "experiment_name": "latxa_llama31_8b_rag_e5_topk5_extractive_mixed_eu",
+  "input": "/tmp/claude-1034/-home-igutierrez134/822972dc-80bc-4f28-8df8-cdd479f4aca8/scratchpad/truncation_reruns/1054_latxa_llama31_8b_rag_e5_topk5_extractive_mixed_eu_dev_seed43_retry_input.jsonl",
+  "output": "experiments/runs/1054_latxa_llama31_8b_rag_e5_topk5_extractive_mixed_eu_dev_seed43_retry/predictions.jsonl",
+  "model": "HiTZ/Latxa-Llama-3.1-8B-Instruct",
+  "language": "eu",
+  "prompt_style": "extractive",
+  "think": false,
+  "self_feedback": true,
+  "max_new_tokens": 8000,
+  "temperature": 0.6,
+  "trust_remote_code": true,
+  "retrieval_index": "models/retrieval/sns1064_casimedicos_eu_train_multilingual_e5_large",
+  "retrieval_top_k": 5,
+  "top_p": 0.9,
+  "num_runs": 1,
+  "feedback_max_new_tokens": 8000,
+  "seed": 43
+}
