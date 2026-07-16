@@ -139,7 +139,7 @@ def esc(text: str) -> str:
             .replace("_", r"\_").replace("#", r"\#"))
 
 
-def build(rows, lang: str, suffix: str, dev: str) -> str:
+def build(rows, lang: str, suffix: str, dev: str, *, calls_column: bool = False) -> str:
     # MC-acc (and hence MeanQ) on the mixed table comes from the CasiMedicos
     # subset, matching scripts/meanq.py -- undefined on an open-answer-only suffix.
     mc_suffix = "_casimedicos" if suffix == "" else (suffix if suffix == "_casimedicos" else None)
@@ -170,15 +170,19 @@ def build(rows, lang: str, suffix: str, dev: str) -> str:
         if vals:
             best[m] = max(vals)
 
-    # 3 label columns (#, Pipeline, SF) + quality + 2 cost columns.
-    ncol = 3 + len(QUALITY) + 2
-    colspec = r"r l c " + "c " * len(QUALITY) + r"c c"
+    # 3 label columns (#, Pipeline, SF) + quality + cost (sec, tok, and -- for ES,
+    # where the gap between a cheap and an expensive pipeline is the point being
+    # made -- calls).
+    n_cost = 3 if calls_column else 2
+    ncol = 3 + len(QUALITY) + n_cost
+    colspec = r"r l c " + "c " * len(QUALITY) + "c " * n_cost
+    cost_header = "sec & tok" + (" & calls" if calls_column else "")
     header = (
         r"\# & Pipeline & SF & \multicolumn{%d}{c}{Quality $\uparrow$} & "
-        r"\multicolumn{2}{c}{Cost $\downarrow$} \\" % len(QUALITY)
+        r"\multicolumn{%d}{c}{Cost $\downarrow$} \\" % (len(QUALITY), n_cost)
         + "\n" + r"\cmidrule(lr){4-%d}\cmidrule(lr){%d-%d}" % (
             3 + len(QUALITY), 4 + len(QUALITY), ncol)
-        + "\n" + r" &  &  & " + " & ".join(n for _, n in QUALITY) + r" & sec & tok \\"
+        + "\n" + r" &  &  & " + " & ".join(n for _, n in QUALITY) + f" & {cost_header} \\\\"
     )
     lines = [
         r"\begin{scriptsize}",
@@ -217,8 +221,10 @@ def build(rows, lang: str, suffix: str, dev: str) -> str:
             f"{g['sec']:.2f}" if g["sec"] is not None else "---",
             f"{g['tok']:.0f}" if g["tok"] is not None else "---",
         ]
+        if calls_column:
+            cells.append(f"{g['calls']:.1f}" if g["calls"] is not None else "1.0")
         lines.append(" & ".join(cells) + r" \\")
-        if g["calls"] is not None:
+        if not calls_column and g["calls"] is not None:
             calls_notes.append(f"{g['label']} {g['calls']:.1f}")
 
     lines += [
@@ -232,7 +238,7 @@ def build(rows, lang: str, suffix: str, dev: str) -> str:
 
 
 def main() -> None:
-    (OUT / "table_reasoning_es.tex").write_text(build(ES_ROWS, "ES", "", "mixed"))
+    (OUT / "table_reasoning_es.tex").write_text(build(ES_ROWS, "ES", "", "mixed", calls_column=True))
     (OUT / "table_reasoning_eu.tex").write_text(build(EU_ROWS, "EU", "", "mixed"))
     print("  wrote table_reasoning_es.tex, table_reasoning_eu.tex")
 
