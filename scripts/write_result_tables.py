@@ -154,6 +154,19 @@ def values(summaries: list[dict], metric: str, *, use_sf: bool) -> list[float]:
     return out
 
 
+def value_or_none(summary: Optional[dict], metric: str, *, use_sf: bool) -> Optional[float]:
+    """Like values(), but for one summary and keeping None instead of dropping it,
+    so per-seed lists from different sources (e.g. mixed-file ROUGE-L/BERT-F1 vs.
+    the _casimedicos-subset MC-acc) stay aligned by seed position when zipped."""
+    if summary is None:
+        return None
+    block = "after_feedback" if use_sf else "before_feedback"
+    value = (summary.get(block) or {}).get("overall", {}).get(metric)
+    if value is None:
+        value = (summary.get("overall") or {}).get(metric)
+    return float(value) if value is not None else None
+
+
 def mean_std(vals: list[float]) -> tuple[Optional[float], Optional[float]]:
     if not vals:
         return None, None
@@ -201,16 +214,30 @@ def collect(prefix: str, base: str, suffix: str, use_sf: bool) -> Optional[dict]
     # collapsed to 0.0 and fmt() dropped the +/- entirely). On tables that are
     # already CasiMedicos- or SNS-only, the row's own MC-accuracy value is used
     # (present or None respectively).
+    mixed_summaries = [load_summary(run_dir(prefix, base, sd), suffix) for sd in SEEDS]
     if suffix == "":  # mixed table
-        casi = [s for s in (load_summary(run_dir(prefix, base, sd), "_casimedicos")
-                            for sd in SEEDS) if s]
-        mc = mean_std(values(casi, "mc_accuracy", use_sf=use_sf)) if casi else (None, None)
-        row["mc_accuracy"] = mc
+        mc_summaries = [load_summary(run_dir(prefix, base, sd), "_casimedicos") for sd in SEEDS]
+        row["mc_accuracy"] = mean_std(values([s for s in mc_summaries if s], "mc_accuracy", use_sf=use_sf))
     else:
-        mc = row["mc_accuracy"]
-    parts = [row["rouge_l_f1"][0], row["bertscore_f1"][0], mc[0]]
-    present = [p for p in parts if p is not None]
-    row["meanq"] = (sum(present) / len(present), None) if present else (None, None)
+        mc_summaries = mixed_summaries
+
+    # MeanQ, per seed: pair that seed's ROUGE-L/BERT-F1 (mixed file) with that SAME
+    # seed's MC-acc (casimedicos file for the mixed table, else the row's own file),
+    # aligned by seed position (via value_or_none, which keeps a None placeholder
+    # rather than silently dropping a missing seed and shifting later ones out of
+    # alignment) -- then averaged over seeds -- exactly scripts/meanq.py's
+    # meanq_per_seed method. Averaging three already-averaged component means (the
+    # previous approach) has no per-seed variance to report, which is why MeanQ's
+    # +/-std was always missing; this fixes that by construction.
+    per_seed_meanq = []
+    for i in range(len(SEEDS)):
+        rouge = value_or_none(mixed_summaries[i], "rouge_l_f1", use_sf=use_sf)
+        bert = value_or_none(mixed_summaries[i], "bertscore_f1", use_sf=use_sf)
+        mc_seed = value_or_none(mc_summaries[i], "mc_accuracy", use_sf=use_sf)
+        parts = [v for v in (rouge, bert, mc_seed) if v is not None]
+        if parts:
+            per_seed_meanq.append(sum(parts) / len(parts))
+    row["meanq"] = mean_std(per_seed_meanq)
     return row
 
 
