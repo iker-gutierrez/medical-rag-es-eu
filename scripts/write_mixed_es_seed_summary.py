@@ -68,9 +68,17 @@ ES_MODELS = [
     ("Qwen3.5-9B (no-think)", 3, 4),
     ("Qwen3.5-9B (think)",    5, 6),
 ]
-# Retrieval sweep rows the base RAG config is chosen from (indices into EXPERIMENTS):
-#   1 e5 top1, 2 e5 top3, 3 e5 top5, 4 rerank1, 5 rerank3, 6 rerank5.
+# Retrieval sweep rows the base RAG config for row 8 / domain rows is chosen from
+# (indices into EXPERIMENTS): 1 e5 top1, 2 e5 top3, 3 e5 top5, 4 rerank1, 5 rerank3,
+# 6 rerank5. Row 8 cannot wire to itself, so this stays the six-config sweep for
+# that decision -- see rewire_dependent_configs.py.
 RETRIEVAL_IDX = [1, 2, 3, 4, 5, 6]
+# Full pool for the decision table: it answers "what is the single best config to
+# carry into the reasoning pipelines", so it must span every row (0 baseline, 1-6
+# retrieval sweep, 7 few-shot-no-RAG, 8 few-shot+RAG, 9-10 domain restriction), not
+# just the retrieval sweep. Row 8 can genuinely win outright -- for Qwen-think it
+# does, 71.35 vs. rerank5's 71.34 -- and the table must be able to show that.
+DECISION_IDX = list(range(11))
 
 
 def _load_summaries_for(source_suffix: str):
@@ -99,7 +107,7 @@ def build_meanq_decision_tables(source_suffix: str = "") -> str:
              "and domain-restriction experiments are then wired to.\n"]
     for label, id_col, base_col in ES_MODELS:
         rows = [(0, EXPERIMENTS[i][0], EXPERIMENTS[i][id_col], EXPERIMENTS[i][base_col])
-                for i in RETRIEVAL_IDX]
+                for i in DECISION_IDX]
         parts.append(f"\n#### {label}\n")
         parts.append(render_model_table(
             rows, cost_nosf=_cost_nosf, cost_sf=_cost_sf, cost_delta=_cost_delta,
