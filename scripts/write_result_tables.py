@@ -59,16 +59,14 @@ QUALITY = [
 # there is the mean of the two overlap metrics.
 MEANQ_COMPONENTS = ("rouge_l_f1", "bertscore_f1", "mc_accuracy")
 
-# The appendix additionally reports cosine similarity. It is omitted from the main
-# text because it saturates -- the configurations separate by barely a point -- and
-# because it scores a fluent, on-topic, factually wrong answer nearly as highly as a
-# correct one. It is kept here so nothing is discarded.
-QUALITY_APPENDIX = [
-    ("rouge_l_f1", r"ROUGE-L"),
-    ("cosine_similarity", r"Cosim"),
-    ("bertscore_f1", r"BERT-F1"),
-    ("mc_accuracy", r"MC-acc"),
-]
+# Raw metric fields collect() needs to pull from the metric JSONs (MeanQ is
+# derived, computed separately below, not read from a file). The appendix used
+# to additionally show cosine similarity, but it was dropped everywhere else
+# (it saturates -- configurations separate by barely a point -- and scores a
+# fluent, on-topic, factually wrong answer nearly as highly as a correct one),
+# so the appendix now shows the same six metrics as the main text: no reason
+# for the two to disagree on what "the" results are.
+RAW_QUALITY_FIELDS = ("rouge_l_f1", "bertscore_f1", "mc_accuracy")
 
 # A globally unique id per (condition, model, SF) triple. The staged tables are
 # views onto one experiment grid, not separate experiments, so an id identifies the
@@ -188,20 +186,26 @@ def collect(prefix: str, base: str, suffix: str, use_sf: bool) -> Optional[dict]
     if not summaries:
         return None
     row: dict[str, Any] = {"n": len(summaries)}
-    for metric, _ in QUALITY_APPENDIX:
+    for metric in RAW_QUALITY_FIELDS:
         row[metric] = mean_std(values(summaries, metric, use_sf=use_sf))
     row["sec"] = cost(summaries, "example_seconds", token=False)
     row["tok"] = cost(summaries, "total_tokens", token=True)
 
-    # MeanQ = mean of the available quality components. On the mixed table MC-accuracy
-    # comes from the CasiMedicos subset (it is undefined on the open-answer half), so
-    # it is read from the *_casimedicos metric files, matching scripts/meanq.py. On
-    # tables that already are CasiMedicos or SNS only, the row's own MC-accuracy value
-    # is used (present or None respectively).
+    # MC-accuracy on the mixed table comes from the CasiMedicos subset (it is
+    # undefined on the open-answer half, and the mixed-suffix metric files are
+    # missing it outright for seeds other than 42 -- see the seed/prompt audit),
+    # so it is read from the *_casimedicos metric files, matching scripts/meanq.py.
+    # This OVERWRITES row["mc_accuracy"] (not just a local var used for MeanQ):
+    # without that, the table's own MC-acc column silently fell back to the
+    # partially-populated mixed-suffix value (often a single seed, so std
+    # collapsed to 0.0 and fmt() dropped the +/- entirely). On tables that are
+    # already CasiMedicos- or SNS-only, the row's own MC-accuracy value is used
+    # (present or None respectively).
     if suffix == "":  # mixed table
         casi = [s for s in (load_summary(run_dir(prefix, base, sd), "_casimedicos")
                             for sd in SEEDS) if s]
         mc = mean_std(values(casi, "mc_accuracy", use_sf=use_sf)) if casi else (None, None)
+        row["mc_accuracy"] = mc
     else:
         mc = row["mc_accuracy"]
     parts = [row["rouge_l_f1"][0], row["bertscore_f1"][0], mc[0]]
@@ -376,7 +380,7 @@ def build_language(experiments, models, lang: str, dev_slug: str, suffix: str) -
                  f"{', '.join(str(s) for s in SEEDS)}."),
         short=f"Full dev ablation ({lang}, {dev_slug})",
         tag=f"app-{lang.lower()}-{dev_slug}", suffix=suffix,
-        quality=QUALITY_APPENDIX,
+        quality=QUALITY,
     )) + "\n")
 
 
