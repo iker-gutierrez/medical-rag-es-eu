@@ -247,14 +247,18 @@ def main() -> None:
         "*different* row per language (see below) -- so every difference here is "
         "attributable to the reasoning pipeline, not to retrieval.",
         "",
-        "- **ES**: Qwen3.5-9B (think), retrieval e5 top-15 -> rerank top-5, Spanish.",
-        "- **EU**: Llama-3.1-8B-Instruct, retrieval **e5 top-3, no reranker**, Basque.",
+        "- **ES**: Qwen3.5-9B (no-think), retrieval e5 top-15 -> rerank top-5, Spanish.",
+        "- **EU**: Latxa-Llama-3.1-8B-Instruct, retrieval **e5 top-1, no reranker**, Basque.",
         "",
-        "Each language's retrieval is the winning row of its own decision table. For EU that "
-        "is e5 top 3, not rerank top 5: the prose under the EU table names rerank top 5 "
-        "because it ranks on BERTScore alone, but e5 top 3 wins the composite BERT-MC mean "
-        "(61.53 vs 55.87) and multiple-choice accuracy (51.85 vs 39.68) for a 0.86 BERTScore "
-        "loss -- the same trade-off the ES table used to prefer think mode.",
+        "Each language's retrieval is the winning row of its own decision table, ranked by "
+        "MeanQ = mean(ROUGE-L, BERT-F1, MC-accuracy). ES uses Qwen3.5-9B no-think rather than "
+        "think mode: think mode's MeanQ edge over no-think+rerank5 was 0.01 (well inside the "
+        "seed-to-seed std), at roughly 3x the tokens and latency per call, and MA-RAG's own "
+        "conflict-resolution mechanism is designed to close the same kind of gap think mode "
+        "buys through multi-candidate sampling, so the cost was judged not worth it. EU uses "
+        "Latxa (the Basque-adapted model) at e5 top-1, its own ablation winner -- fewer "
+        "retrieved passages consistently raised MC-accuracy for Basque even though it lowered "
+        "ROUGE-L/BERT-F1, the opposite of the pattern in Spanish.",
         "",
         "The baseline runs a self-feedback pass, so it appears as **two rows**: `noSF` (a "
         "single generation -- the like-for-like compute comparison, since the reasoning "
