@@ -86,7 +86,7 @@ def report_format(tag: str) -> None:
 
 
 def main() -> None:
-    for tag in ("eu", "es", "eu_latxa_topk1"):
+    for tag in ("eu", "es", "eu_latxa_topk1", "es_nothink"):
         report_conflict(tag)
         report_format(tag)
 
