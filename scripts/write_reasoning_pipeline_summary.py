@@ -129,6 +129,11 @@ def collect(stem: str, suffix: str, *, use_after: bool) -> Optional[dict[str, An
     self-feedback stage, so noSF is the like-for-like compute comparison while SF
     is the literal winning row of the dev decision table. Showing only one of them
     would quietly flatter or punish the pipelines depending on which was chosen.
+
+    Metrics match the ablation result tables exactly: quality = ROUGE-L, BERT-F1,
+    MC-acc, MeanQ; cost = sec/sample, tok/sample. Nothing else (no BERTScore-delta,
+    Cosim, or token-F1) is a core column here, for the same reason the ablation
+    tables dropped them -- see scripts/meanq.py and scripts/metric_tables.py.
     """
     runs = seed_runs(stem)
     summaries = [s for s in (load_summary(run, suffix) for run in runs) if s]
@@ -136,18 +141,51 @@ def collect(stem: str, suffix: str, *, use_after: bool) -> Optional[dict[str, An
         return None
 
     row: dict[str, Any] = {"n_seeds": len(summaries), "column": "SF" if use_after else "noSF"}
-    for metric in ("bertscore_f1", "cosine_similarity", "rouge_l_f1", "token_overlap_f1"):
-        for section in ("overall", "short_answer", "evidence"):
-            mean, std = mean_std(metric_values(summaries, section, metric, use_after=use_after))
-            row[f"{section}_{metric}"] = (mean, std)
-    mc_mean, mc_std = mean_std(metric_values(summaries, "overall", "mc_accuracy", use_after=use_after))
-    row["mc_accuracy"] = (mc_mean, mc_std)
+    for metric in ("bertscore_f1", "rouge_l_f1"):
+        mean, std = mean_std(metric_values(summaries, "overall", metric, use_after=use_after))
+        row[metric] = (mean, std)
+
+    # MC-acc: on the mixed set it only exists on the CasiMedicos half, read from
+    # the _casimedicos metric subset -- matching meanq.py, so MeanQ here is
+    # computed the same way as in the ablation decision tables. On a suffix that
+    # IS already _casimedicos, use it directly; on _sns1064 there is no MC-acc.
+    mc_suffix = "_casimedicos" if suffix == "" else (suffix if suffix == "_casimedicos" else None)
+
+    def value_for(run: str, load_suffix: str, section: str, metric: str) -> Optional[float]:
+        summary = load_summary(run, load_suffix)
+        if summary is None:
+            return None
+        block = (summary.get("after_feedback") if use_after else summary.get("before_feedback")) or {}
+        value = block.get(section, {}).get(metric)
+        if value is None and not use_after:
+            value = (summary.get(section) or {}).get(metric)
+        return float(value) if value is not None else None
+
+    mc_values = [value_for(run, mc_suffix, "overall", "mc_accuracy") for run in runs] if mc_suffix else [None] * len(runs)
+    row["mc_accuracy"] = mean_std([v for v in mc_values if v is not None])
+
+    # MeanQ per seed -- pairs ROUGE-L/BERT-F1/MC-acc from the SAME run/seed by
+    # indexing on `runs` directly (not on metric_values()'s filtered output,
+    # which drops Nones and would silently misalign seeds if one run is missing
+    # a metric another has) -- then averages across seeds. Same method as
+    # metric_tables.py's meanq_per_seed, so directly comparable to the ablation
+    # decision tables.
+    per_seed_meanq = []
+    for i, run in enumerate(runs):
+        rouge = value_for(run, suffix, "overall", "rouge_l_f1")
+        bert = value_for(run, suffix, "overall", "bertscore_f1")
+        mc = mc_values[i]
+        parts = [v for v in (rouge, bert, mc) if v is not None]
+        if parts:
+            per_seed_meanq.append(sum(parts) / len(parts))
+    row["meanq"] = mean_std(per_seed_meanq)
 
     row["sec_per_sample"] = cost_value(summaries, "example_seconds", token=False)
     row["total_tokens"] = cost_value(summaries, "total_tokens", token=True)
 
-    # Pipeline-only: how many LLM calls did each answer actually cost? The metric
-    # JSON does not carry run metadata, so read it from the run's own meta file.
+    # Not a core metric column (kept out of the ablation-matching set), but still
+    # useful context for the pipelines specifically: how many LLM calls did each
+    # answer actually cost, and (MA-RAG only) how often did candidates just agree.
     calls = []
     consensus = []
     for run in runs:
@@ -167,7 +205,11 @@ def collect(stem: str, suffix: str, *, use_after: bool) -> Optional[dict[str, An
 
 
 def build_table(rows: list[tuple[str, str, bool]], suffix: str, include_mc: bool) -> str:
-    # The baseline (rows[0], has_sf=True) expands into two rows: noSF and SF.
+    """Same six metrics as the ablation decision tables: quality = ROUGE-L,
+    BERT-F1, MC-acc, MeanQ; cost = sec/sample, tok/sample. The baseline
+    (rows[0], has_sf=True) expands into two rows (noSF, SF); pipelines have no
+    self-feedback stage of their own, so they get one row each, shown against
+    both baseline rows via a MeanQ Δ (the composite score, not just BERTScore)."""
     collected: list[tuple[str, Optional[dict[str, Any]]]] = []
     for label, stem, has_sf in rows:
         if has_sf:
@@ -177,61 +219,58 @@ def build_table(rows: list[tuple[str, str, bool]], suffix: str, include_mc: bool
             collected.append((label, collect(stem, suffix, use_after=False)))
 
     num_baselines = sum(1 for _, _, has_sf in rows if has_sf) * 2
-    base_nosf = collected[0][1]["overall_bertscore_f1"][0] if collected[0][1] else None
-    base_sf = collected[1][1]["overall_bertscore_f1"][0] if num_baselines > 1 and collected[1][1] else None
+    base_nosf = collected[0][1]["meanq"][0] if collected[0][1] else None
+    base_sf = collected[1][1]["meanq"][0] if num_baselines > 1 and collected[1][1] else None
 
+    mc_cols = ("MC-acc |", "---:|") if include_mc else ("", "")
     header = (
-        "| # | Pipeline | col | BERTScore | Δ vs noSF | Δ vs SF | Cosim | ROUGE-L | token F1 |"
-        + (" MC Acc. |" if include_mc else "")
-        + " sec/sample | tokens/sample | LLM calls | seeds |"
+        "| # | Pipeline | col | ROUGE-L | BERT-F1 | " + mc_cols[0] + " MeanQ | "
+        "Δ MeanQ vs noSF | Δ MeanQ vs SF | sec/sample | tok/sample | seeds |"
     )
-    sep = (
-        "|---:|---|---|---:|---:|---:|---:|---:|---:|"
-        + ("---:|" if include_mc else "")
-        + "---:|---:|---:|---:|"
-    )
+    sep = "|---:|---|---|---:|---:|" + mc_cols[1] + "---:|---:|---:|---:|---:|---:|"
     lines = [header, sep]
 
+    n_cols = 8 + (1 if include_mc else 0)
     for idx, (label, row) in enumerate(collected):
         is_baseline = idx < num_baselines
         if row is None:
             lines.append(
-                "| " + " | ".join([str(idx), label, "--", "*not yet run*"]
-                                  + ["--"] * (9 + (1 if include_mc else 0))) + " |"
+                "| " + " | ".join([str(idx), label, "--", "*not yet run*"] + ["--"] * (n_cols - 1)) + " |"
             )
             continue
-        bert = row["overall_bertscore_f1"]
+        meanq = row["meanq"]
 
         def delta(base: Optional[float]) -> str:
-            if is_baseline or base is None or bert[0] is None:
+            if is_baseline or base is None or meanq[0] is None:
                 return "baseline" if is_baseline else "--"
-            return f"{bert[0] - base:+.2f}"
+            return f"{meanq[0] - base:+.2f}"
 
         cells = [
             str(idx),
             f"**{label}**" if is_baseline else label,
             row["column"],
-            fmt(*bert),
-            delta(base_nosf),
-            delta(base_sf),
-            fmt(*row["overall_cosine_similarity"]),
-            fmt(*row["overall_rouge_l_f1"]),
-            fmt(*row["overall_token_overlap_f1"]),
+            fmt(*row["rouge_l_f1"]),
+            fmt(*row["bertscore_f1"]),
         ]
         if include_mc:
             cells.append(fmt(*row["mc_accuracy"]))
         cells += [
+            fmt(*meanq),
+            delta(base_nosf),
+            delta(base_sf),
             f"{row['sec_per_sample']:.2f}" if row["sec_per_sample"] is not None else "--",
             f"{row['total_tokens']:.0f}" if row["total_tokens"] is not None else "--",
-            f"{row['llm_calls']:.1f}" if row["llm_calls"] is not None else "1.0",
             str(row["n_seeds"]),
         ]
         lines.append("| " + " | ".join(cells) + " |")
 
-    # MA-RAG's headline diagnostic: how often the candidates simply agreed.
+    # Not core metric columns, but useful pipeline-specific context.
     marag = next((row for label, row in collected if row and row.get("consensus_pct") is not None), None)
-    if marag is not None:
+    calls_rows = [(label, row["llm_calls"]) for label, row in collected if row and row.get("llm_calls") is not None]
+    if calls_rows:
         lines.append("")
+        lines.append("*LLM calls per answer: " + "; ".join(f"{label} {v:.1f}" for label, v in calls_rows) + ".*")
+    if marag is not None:
         lines.append(
             f"*MA-RAG reached candidate consensus (no synthesis needed) on "
             f"{marag['consensus_pct']:.1f}% of records.*"
