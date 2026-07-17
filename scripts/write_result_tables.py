@@ -68,19 +68,22 @@ MEANQ_COMPONENTS = ("rouge_l_f1", "bertscore_f1", "mc_accuracy")
 # for the two to disagree on what "the" results are.
 RAW_QUALITY_FIELDS = ("rouge_l_f1", "bertscore_f1", "mc_accuracy")
 
-# A globally unique id per (condition, model, SF) triple. The staged tables are
-# views onto one experiment grid, not separate experiments, so an id identifies the
-# same run wherever it appears: a row carried forward as a reference keeps the number
-# it had when it was first introduced, and the appendix uses the same numbers again.
-# Restarting each table at 1 would make "row 3" ambiguous across five tables.
-EXPERIMENT_IDS: dict[tuple[str, str, bool], int] = {}
+# Composite id: <experiment number><model letter>, e.g. "2a". The experiment
+# number (0-10) identifies the row/condition -- baseline is 0, e5 top 1 is 1, ...
+# domain-CasiMedicos is 10 -- assigned once from the canonical EXPERIMENTS list
+# order (ES and EU share the same label text and order, so one map serves both).
+# The model letter (a, b, c, ...) is assigned from that language's own model list
+# order (ES_MODELS / EU_MODELS). SF is NOT part of the id -- the noSF and SF rows
+# of the same condition+model share an id and are distinguished only by the SF
+# checkmark column, exactly as the two rows already sit next to each other.
+# Both numbers and letters are global across every table (staged + appendix): a
+# row carried forward as a reference keeps the id it had when first introduced.
+EXPERIMENT_NUMBERS: dict[str, int] = {}
+MODEL_LETTERS: dict[str, str] = {}
 
 
-def experiment_id(label: str, model: str, use_sf: bool) -> int:
-    key = (label, model, use_sf)
-    if key not in EXPERIMENT_IDS:
-        EXPERIMENT_IDS[key] = len(EXPERIMENT_IDS) + 1
-    return EXPERIMENT_IDS[key]
+def experiment_id(label: str, model: str, use_sf: bool) -> str:
+    return f"{EXPERIMENT_NUMBERS[label]}{MODEL_LETTERS[model]}"
 
 
 # The staged main-text tables. Each is (file slug, caption stem, question, row labels).
@@ -359,18 +362,17 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
 
 
 def assign_ids(experiments, models) -> None:
-    """Number every (condition, model, SF) triple once, in canonical grid order.
-
-    Called before any table is rendered. If ids were instead allocated lazily as
-    rows were drawn, the number a run received would depend on which table happened
-    to be generated first, and the same experiment would carry different numbers in
-    the staged tables and the appendix.
+    """Assign the experiment number (0-10, canonical EXPERIMENTS order) and model
+    letter (a, b, c, ..., canonical model-list order) once, before any table is
+    rendered. If ids were instead allocated lazily as rows were drawn, the id a
+    run received would depend on which table happened to be generated first, and
+    the same experiment would carry different ids in the staged tables and the
+    appendix.
     """
-    for entry in experiments:
-        label = entry[0]
-        for model in models:
-            for use_sf in (False, True):
-                experiment_id(label, model, use_sf)
+    for i, entry in enumerate(experiments):
+        EXPERIMENT_NUMBERS[entry[0]] = i
+    for i, model in enumerate(models):
+        MODEL_LETTERS[model] = chr(ord("a") + i)
 
 
 def build_language(experiments, models, lang: str, dev_slug: str, suffix: str) -> None:
@@ -416,7 +418,8 @@ def main() -> None:
         (ES_EXPERIMENTS, ES_MODELS, "ES"),
         (EU_EXPERIMENTS, EU_MODELS, "EU"),
     ):
-        EXPERIMENT_IDS.clear()   # ES and EU are independent grids, each numbered from 1
+        EXPERIMENT_NUMBERS.clear()   # ES and EU are independent grids, each numbered from 0
+        MODEL_LETTERS.clear()
         assign_ids(experiments, models)
         for dev_slug, suffix in (("mixed", ""), ("sns1064", "_sns1064"),
                                  ("casimedicos", "_casimedicos")):
