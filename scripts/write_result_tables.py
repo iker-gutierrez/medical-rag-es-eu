@@ -427,7 +427,9 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
                best_config: Optional[str] | Optional[dict[str, str]] = None, quality=None,
                highlight_rows: frozenset[tuple[str, str]] = frozenset(),
                restrict: Optional[dict[str, frozenset[str]]] = None,
-               best_sf_only: frozenset[tuple[str, str]] = frozenset()) -> list[str]:
+               best_sf_only: frozenset[tuple[str, str]] = frozenset(),
+               pin_rows: frozenset[tuple[str, str]] = frozenset(),
+               separator_after: int = 0) -> list[str]:
     """`labels` is the row labels to show, in order. `restrict`, if given, maps a
     label to the SET of models whose rows should be shown for it -- used for
     carried-forward reference row(s), which are specific config-model
@@ -441,7 +443,16 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
     instead of showing both -- used for the same carried-forward reference row(s)
     and the tie-break comparison rows, where showing both SF states doubles the
     row count without adding to the point being made (which config/model wins,
-    not whether self-feedback helps it)."""
+    not whether self-feedback helps it).
+
+    `pin_rows`, keyed like `highlight_rows`, marks a row with a translucent blue
+    background (\\rowcolor{pinnedrow}): that model's OWN best config, wherever it
+    appears -- as one of a stage's own comparison rows (marking which one wins
+    and will be carried forward) or as a later stage's reference row (marking
+    that it still is that model's best). `separator_after`, if nonzero, draws a
+    dashed rule after that many leading reference-row labels, visually splitting
+    "carried forward from earlier stages" from "new this stage" without the
+    reader needing to parse the caption."""
     quality = quality or QUALITY
     restrict = restrict or {}
     # 4 label columns (#, Model, Experiment, SF) + quality + 2 cost columns.
@@ -512,7 +523,7 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
         if vals:
             best_of[metric] = max(vals)
 
-    for label in labels:
+    for label_index, label in enumerate(labels):
         # Model-major, SF-minor (2a, 2a', 2b, 2b', ...): the noSF and SF row of one
         # model sit adjacent, rather than every model's noSF row then every model's
         # SF row. rows_for() returns one use_sf slice at a time, in model order, so
@@ -531,6 +542,7 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
                 if row is None:
                     continue
                 exp_cell = esc(display_label(label, best_config, model))
+                row_prefix = r"\rowcolor{pinnedrow}" if (label, model) in pin_rows else ""
                 cells = [
                     experiment_id(label, model, use_sf),
                     esc(model),
@@ -558,8 +570,14 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
                     f"{row['sec']:.2f}" if row["sec"] is not None else "---",
                     f"{row['tok']:.0f}" if row["tok"] is not None else "---",
                 ]
-                lines.append(" & ".join(cells) + r" \\")
+                lines.append(row_prefix + " & ".join(cells) + r" \\")
         lines.append(r"\addlinespace[2pt]")
+        # Dashed rule after the last reference-row label, splitting "carried
+        # forward from earlier stages" from "new this stage" -- separator_after
+        # counts LABELS, not rendered rows, since a reference label can itself
+        # expand to several rows (multiple models, or noSF+SF).
+        if separator_after and label_index == separator_after - 1:
+            lines.append(r"\cdashline{1-%d}" % ncol)
     lines += [
         r"\end{longtable}",
         r"\end{scriptsize}",
@@ -680,6 +698,8 @@ def build_language(experiments, models, lang: str, dev_slug: str, suffix: str) -
             restrict=restrict or None,
             highlight_rows=highlight_rows if is_tie_break_stage else frozenset(),
             best_sf_only=stage_best_sf_only,
+            pin_rows=frozenset(pins),
+            separator_after=len(ref_labels) if reference else 0,
         )) + "\n")
 
     # ── full appendix table: all eleven conditions ─────────────────────────────
