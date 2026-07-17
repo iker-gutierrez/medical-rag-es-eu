@@ -535,6 +535,12 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
             if allowed_models and model not in allowed_models:
                 continue
             keep_sf = best_sf_state(nosf_rows.get(model), sf_rows.get(model)) if (label, model) in best_sf_only else None
+            # Which SF state to paint blue for a pinned (label, model): whichever
+            # has the higher MeanQ, same rule as best_sf_only -- but computed
+            # independently of it, since a pin's OWN stage still shows BOTH SF
+            # states (best_sf_only is empty there) while only one of them should
+            # get the row highlight.
+            pin_sf = best_sf_state(nosf_rows.get(model), sf_rows.get(model)) if (label, model) in pin_rows else None
             for use_sf, rows_by_model in ((False, nosf_rows), (True, sf_rows)):
                 if keep_sf is not None and use_sf != keep_sf:
                     continue
@@ -542,7 +548,8 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
                 if row is None:
                     continue
                 exp_cell = esc(display_label(label, best_config, model))
-                row_prefix = r"\rowcolor{pinnedrow}" if (label, model) in pin_rows else ""
+                is_pinned_row = (label, model) in pin_rows and (pin_sf is None or use_sf == pin_sf)
+                row_prefix = r"\rowcolor{pinnedrow}" if is_pinned_row else ""
                 cells = [
                     experiment_id(label, model, use_sf),
                     esc(model),
@@ -575,9 +582,12 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
         # Dashed rule after the last reference-row label, splitting "carried
         # forward from earlier stages" from "new this stage" -- separator_after
         # counts LABELS, not rendered rows, since a reference label can itself
-        # expand to several rows (multiple models, or noSF+SF).
+        # expand to several rows (multiple models, or noSF+SF). Extra space
+        # AFTER the rule too (not just before it), so it doesn't crowd the row
+        # that follows -- \cdashline leaves no vertical gap of its own.
         if separator_after and label_index == separator_after - 1:
             lines.append(r"\cdashline{1-%d}" % ncol)
+            lines.append(r"\addlinespace[4pt]")
     lines += [
         r"\end{longtable}",
         r"\end{scriptsize}",
