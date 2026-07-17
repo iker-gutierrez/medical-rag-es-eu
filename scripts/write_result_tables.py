@@ -374,12 +374,20 @@ def best_label(experiments, models, pool, suffix, *, only_model: Optional[str] =
 def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
                best_config: Optional[str] = None, quality=None,
                highlight_rows: frozenset[tuple[str, str]] = frozenset(),
-               restrict: Optional[dict[str, str]] = None) -> list[str]:
+               restrict: Optional[dict[str, str]] = None,
+               best_sf_only: frozenset[tuple[str, str]] = frozenset()) -> list[str]:
     """`labels` is the row labels to show, in order. `restrict`, if given, maps a
     label to the ONE model whose row should be shown for it -- used for a
     carried-forward reference row, which is one specific config-model
     combination, not every model's version of that label (a stage's own
-    comparison labels are never in `restrict`, so they still show every model)."""
+    comparison labels are never in `restrict`, so they still show every model).
+
+    `best_sf_only`, keyed the same way as `highlight_rows` ((label, model)
+    pairs), collapses that row to whichever of noSF/SF has the higher MeanQ,
+    instead of showing both -- used for the same carried-forward reference row
+    and the tie-break comparison rows, where showing both SF states doubles the
+    row count without adding to the point being made (which config/model wins,
+    not whether self-feedback helps it)."""
     quality = quality or QUALITY
     restrict = restrict or {}
     # 4 label columns (#, Model, Experiment, SF) + quality + 2 cost columns.
@@ -412,6 +420,20 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
         r"\bottomrule",
         r"\endlastfoot",
     ]
+    def best_sf_state(nosf_row: Optional[dict], sf_row: Optional[dict]) -> bool:
+        """Which of noSF/SF has the higher MeanQ, for best_sf_only rows -- True
+        means SF wins. Falls back to whichever row exists if only one does."""
+        if sf_row is None:
+            return False
+        if nosf_row is None:
+            return True
+        nosf_mean, sf_mean = nosf_row["meanq"][0], sf_row["meanq"][0]
+        if nosf_mean is None:
+            return True
+        if sf_mean is None:
+            return False
+        return sf_mean > nosf_mean
+
     # Gather every row first, so the best value per metric can be found before
     # rendering. The best value is marked in BOLD, per metric column: the convention
     # in the literature, and unlike a shaded row it survives greyscale printing and
@@ -419,10 +441,15 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
     gathered = []
     for label in labels:
         only_model = restrict.get(label)
+        nosf_rows = dict(rows_for(experiments, models, label, suffix, False))
+        sf_rows = dict(rows_for(experiments, models, label, suffix, True))
         for use_sf in (False, True):
             for model, row in rows_for(experiments, models, label, suffix, use_sf):
                 if only_model and model != only_model:
                     continue
+                if (label, model) in best_sf_only:
+                    if use_sf != best_sf_state(nosf_rows.get(model), sf_rows.get(model)):
+                        continue
                 gathered.append((label, model, use_sf, row))
 
     best_of: dict[str, float] = {}
@@ -442,7 +469,10 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
         for model in models:
             if only_model and model != only_model:
                 continue
+            keep_sf = best_sf_state(nosf_rows.get(model), sf_rows.get(model)) if (label, model) in best_sf_only else None
             for use_sf, rows_by_model in ((False, nosf_rows), (True, sf_rows)):
+                if keep_sf is not None and use_sf != keep_sf:
+                    continue
                 row = rows_by_model.get(model)
                 if row is None:
                     continue
@@ -458,10 +488,15 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
                     cell = fmt(mean, std)
                     is_col_best = mean is not None and metric in best_of and mean == best_of[metric]
                     # highlight_rows marks a tie-break comparison's own MeanQ cell
-                    # (not the whole row), and only on the noSF row -- the config
-                    # being weighed is always the noSF one. Guarded against
-                    # double-wrapping when that cell is also the column's best value.
-                    is_tie_break = metric == "meanq" and not use_sf and (label, model) in highlight_rows
+                    # (not the whole row). The config being weighed is always the
+                    # noSF one (best_label()'s search is noSF-only by convention),
+                    # but best_sf_only may have collapsed this row down to its
+                    # winning SF state -- so when that's the ONLY row shown for
+                    # this (label, model), still highlight it rather than
+                    # requiring noSF specifically. Guarded against double-wrapping
+                    # when that cell is also the column's best value.
+                    tie_break_sf_ok = not use_sf or (label, model) in best_sf_only
+                    is_tie_break = metric == "meanq" and tie_break_sf_ok and (label, model) in highlight_rows
                     if is_col_best or is_tie_break:
                         cell = r"\textbf{%s}" % cell
                     cells.append(cell)
@@ -593,6 +628,20 @@ def build_language(experiments, models, lang: str, dev_slug: str, suffix: str) -
         )
         shown = ([ref_label] if ref_label else []) + labels
         restrict = {ref_label: reference[1]} if reference else None
+        # A carried-forward reference row shows only its better-MeanQ SF state --
+        # both states would double the row without adding to what the table is
+        # comparing (whether the OTHER conditions beat the reference, not whether
+        # self-feedback helps the reference itself). The tie-break comparison rows
+        # (highlight_rows, at their own stage) get the same treatment for the same
+        # reason: EU's e5top1/top3 and ES's Qwen think/no-think are both already
+        # pinned to noSF by convention (best_label()'s use_sf=False search), so
+        # collapsing to the best SF state here reproduces that pin instead of
+        # fighting it.
+        stage_best_sf_only = (
+            frozenset({(ref_label, reference[1])}) if reference else
+            highlight_rows if slug == tie_break_note_slug else
+            frozenset()
+        )
         out = OUT_DIR / f"table_{lang.lower()}_{dev_slug}_{slug}.tex"
         out.write_text("\n".join(emit_table(
             experiments, models, shown,
@@ -601,6 +650,7 @@ def build_language(experiments, models, lang: str, dev_slug: str, suffix: str) -
             best_config=ref_label,
             restrict=restrict,
             highlight_rows=highlight_rows if slug == tie_break_note_slug else frozenset(),
+            best_sf_only=stage_best_sf_only,
         )) + "\n")
 
     # ── full appendix table: all eleven conditions ─────────────────────────────
