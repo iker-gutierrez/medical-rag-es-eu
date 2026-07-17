@@ -156,39 +156,42 @@ STAGE_POOL = {
                "3-shot + rerank top 5"],
 }
 
-# Manual tie-break, carried forward as TWO reference rows (not one): best_label()
-# would pick a single cross-model/cross-label max, but in both languages the top
-# two candidates are close enough, or trade off against cost distinctly enough,
-# that neither one is simply "the" winner -- both are shown in every later stage
-# so the reader can judge the comparison directly rather than trusting one
-# collapsed pick.
+# Manual pins. Each language's list is [(label, model), ...] -- usually one pin
+# (the config carried forward from the tie-break's own stage onward), but ES
+# carries TWO (see below).
 #
-# EU: e5 top 1 (Latxa, 47.17+/-2.87) vs e5 top 3 (Latxa, 47.64+/-3.59) -- two
-# different LABELS, same model. Within a seed's worth of noise of each other;
-# e5 top 1 has the tighter std and costs roughly half the tokens/latency (see the
-# EU retrieval-stage caption for the numbers), so it isn't a clean win for either.
+# EU: e5 top 1 (Latxa, 47.17+/-2.87) was tied with e5 top 3 (47.64+/-3.59) --
+# within a seed's worth of noise of each other -- but e5 top 1 has the tighter
+# std and costs roughly half the tokens/latency (see the EU retrieval-stage
+# caption for the numbers), and it is the config the reasoning-pipeline
+# experiments were already built on (scripts/write_reasoning_latex_table.py's
+# EU_ROWS) -- carrying e5 top 3 forward too would leave the domain-restriction
+# and reasoning-pipeline sections built on two different bases. So only e5 top 1
+# is pinned; the EU domain-restriction runs (previously built on e5 top 3 by
+# rewire_dependent_configs.py's auto-pick before this pin existed -- see
+# DOMAIN_BASE_LABEL's comment) are being rerun on e5 top 1 to match.
 #
 # ES: Qwen3.5-9B no-think (69.79+/-0.89) vs think (71.34+/-0.38), both at "rerank
-# top 5" -- two different MODELS, same label. The 1.55-point gap is real (bigger
-# than either std, unlike EU), but think mode costs ~2.9x the wall-clock time and
-# ~3.5x the tokens for it (2.03s/1854.59tok vs 5.96s/6541.49tok), the same
-# efficiency trade-off already made in the reasoning-pipeline section (see
-# scripts/write_reasoning_latex_table.py's ES_ROWS comment) -- not a clean win
-# either, just a different axis of trade-off than EU's.
-#
-# Each language's list is [(label, model), (label, model)]; a tie-break's own
-# stage (ES: rerank; EU: retrieval) shows both pairs' full noSF+SF rows so the
-# comparison the pins are based on is visible, not asserted. Every LATER stage
-# carries both forward as two noSF-only reference rows.
+# top 5" -- unlike EU, the 1.55-point gap is real (bigger than either std), so
+# there's no clean single winner: no-think is the efficient choice (~2.9x less
+# latency, ~3.5x fewer tokens for that gain, matching the reasoning-pipeline
+# section's own no-think choice -- scripts/write_reasoning_latex_table.py's
+# ES_ROWS comment), but think's quality edge is real enough that BOTH are kept
+# as reference rows so the reader can judge the trade-off directly.
 FORCED_REFERENCES: dict[str, list[tuple[str, str]]] = {
-    "EU": [("e5 top 1", "Latxa-8B"), ("e5 top 3", "Latxa-8B")],
+    "EU": [("e5 top 1", "Latxa-8B")],
     "ES": [("rerank top 5", "Qwen3.5-9B (no-think)"), ("rerank top 5", "Qwen3.5-9B (think)")],
 }
-# Which stage each language's tie-break is drawn from/shown at in full -- the
-# tie-break's own stage doesn't get a carried-forward reference prepended (its
-# own rows ARE the comparison), and needs the tie-break note in its caption
-# instead of the usual "reference row carried forward" text.
-TIE_BREAK_STAGE = {"EU": "retrieval", "ES": "rerank"}
+# The stage where each language's pinned label(s) are members of that stage's OWN
+# `labels` (EU: "retrieval", where e5 top 1 is one of the four rows; ES: "rerank",
+# where "rerank top 5" is one of the three rows) -- that stage does NOT get the
+# pin(s) prepended as a carried-forward reference (they're already there, as
+# their own row(s); prepending would duplicate them). Every LATER stage does.
+# ES's own-stage table additionally gets a tie-break note in its caption (two
+# pins competing at one label, a genuine trade-off worth explaining); EU's
+# doesn't (one pin, nothing to explain beyond the normal per-metric bolding).
+PIN_OWN_STAGE = {"EU": "retrieval", "ES": "rerank"}
+TIE_BREAK_STAGE = {"ES": "rerank"}
 
 
 def esc(text: str) -> str:
@@ -556,7 +559,7 @@ def build_language(experiments, models, lang: str, dev_slug: str, suffix: str) -
     tie_break_stage = TIE_BREAK_STAGE.get(lang)
     tie_break_note = ""
     highlight_rows: frozenset[tuple[str, str]] = frozenset()
-    if len(pins) == 2:
+    if tie_break_stage and len(pins) == 2:
         (label1, model1), (label2, model2) = pins
         row1 = dict(rows_for(experiments, models, label1, suffix, use_sf=False)).get(model1)
         row2 = dict(rows_for(experiments, models, label2, suffix, use_sf=False)).get(model2)
@@ -585,23 +588,26 @@ def build_language(experiments, models, lang: str, dev_slug: str, suffix: str) -
                 )
 
     for slug, stem, question, labels in STAGES:
+        is_pin_own_stage = slug == PIN_OWN_STAGE.get(lang)
         is_tie_break_stage = slug == tie_break_stage
         # The pins only apply once they've actually appeared as candidates (from
-        # the tie-break's own stage onward). At the tie-break's own stage (ES:
-        # rerank; EU: retrieval), the pinned labels are already members of that
-        # stage's OWN `labels` -- prepending them there would duplicate the rows
-        # (ES: "rerank top 5" is both a pin and one of "rerank"'s own labels) --
-        # so no reference is prepended there, and the stage shows every SF state
-        # of its own rows (best_sf_only left empty) so the comparison the pins are
-        # drawn from is visible, not asserted.
-        reference = [] if (is_tie_break_stage or not pins) else pins
+        # the pins' own stage onward). At that stage, the pinned label(s) are
+        # already members of that stage's OWN `labels` -- prepending them there
+        # would duplicate the rows (ES: "rerank top 5" is both a pin and one of
+        # "rerank"'s own labels; EU: "e5 top 1" is one of "retrieval"'s own
+        # labels) -- so no reference is prepended there, and the stage shows
+        # every SF state of its own rows (best_sf_only left empty) so the
+        # comparison the pins are drawn from is visible, not asserted.
+        reference = [] if (is_pin_own_stage or not pins) else pins
         ref_labels = sorted({label for label, _ in reference})
         ref_desc = " and ".join(f"{lbl}, {mdl}" for lbl, mdl in reference)
+        row_word = "row is the best configuration" if len(reference) == 1 else "rows are the best configurations"
+        system_word = "the best system built" if len(reference) == 1 else "the best systems built"
         caption = (
             f"{stem} ({lang}, {dev_slug} dev). {question}"
-            + (f" The reference rows are the best configurations carried forward "
-               f"from the previous stage ({ref_desc}), so each comparison is "
-               f"against the best systems built so far. Best value per metric in bold."
+            + (f" The reference {row_word} carried forward from the previous "
+               f"stage ({ref_desc}), so each comparison is against {system_word} "
+               f"so far. Best value per metric in bold."
                if reference else
                f" Best value per metric in bold.{tie_break_note}"
                if is_tie_break_stage and tie_break_note else
