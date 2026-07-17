@@ -106,14 +106,40 @@ def meanq_per_seed(summaries: list[dict], mc_summaries: list[dict], use_sf: bool
     return mean_std(per_seed)
 
 
-def cost(summaries: list[dict], field: str, token: bool) -> Optional[float]:
+def _nested_mean(block: dict, name: str) -> float:
+    value = (block.get(name) or {}).get("mean")
+    return float(value) if value is not None else 0.0
+
+
+def cost(summaries: list[dict], token: bool, *, use_sf: bool) -> Optional[float]:
+    """noSF and SF cost are not the same number: the raw metric JSON stores one
+    pipeline-wide total (`example_seconds`, `total_tokens`) that already includes
+    the self-feedback pass -- that total IS the SF row's cost. The noSF row's cost
+    is the pre-feedback components only, matching scripts/summarize_metrics.py's
+    cost_rows() split (also mirrored in scripts/write_result_tables.py's cost()).
+    """
     vals = []
     for summary in summaries:
-        block = summary.get("cost") or {}
-        block = (block.get("token_counts") if token else block.get("timing")) or {}
-        value = (block.get(field) or {}).get("mean")
-        if value is not None:
-            vals.append(float(value))
+        block = summary.get("cost")
+        if not block:
+            continue
+        timing = block.get("timing") or {}
+        tokens = block.get("token_counts") or {}
+        if token:
+            value = (
+                _nested_mean(tokens, "total_tokens") if use_sf else
+                _nested_mean(tokens, "input_tokens") + _nested_mean(tokens, "initial_output_tokens")
+            )
+        else:
+            value = (
+                _nested_mean(timing, "example_seconds") if use_sf else
+                _nested_mean(timing, "retrieval_seconds")
+                + _nested_mean(timing, "rerank_seconds")
+                + _nested_mean(timing, "few_shot_seconds")
+                + _nested_mean(timing, "prompt_seconds")
+                + _nested_mean(timing, "generation_seconds")
+            )
+        vals.append(value)
     return sum(vals) / len(vals) if vals else None
 
 
@@ -159,8 +185,8 @@ def build(rows, lang: str, suffix: str, dev: str, *, calls_column: bool = False)
                 "sf": use_sf,
                 "is_baseline": has_sf,
                 "quality": row,
-                "sec": cost(summaries, "example_seconds", False),
-                "tok": cost(summaries, "total_tokens", True),
+                "sec": cost(summaries, False, use_sf=use_sf),
+                "tok": cost(summaries, True, use_sf=use_sf),
                 "calls": llm_calls(stem),
             })
 

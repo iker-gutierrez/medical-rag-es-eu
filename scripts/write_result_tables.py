@@ -228,14 +228,43 @@ def fmt(mean: Optional[float], std: Optional[float]) -> str:
     return f"{mean:.2f}{{\\tiny$\\pm${std:.2f}}}" if std else f"{mean:.2f}"
 
 
-def cost(summaries: list[dict], field: str, token: bool) -> Optional[float]:
+def _nested_mean(block: dict, name: str) -> float:
+    value = (block.get(name) or {}).get("mean")
+    return float(value) if value is not None else 0.0
+
+
+def cost(summaries: list[dict], token: bool, *, use_sf: bool) -> Optional[float]:
+    """noSF and SF cost are NOT the same number, even though the raw metric JSON
+    only stores one pipeline-wide total (`example_seconds`, `total_tokens`) that
+    already includes the self-feedback pass. That total IS the SF row's cost; the
+    noSF row's cost has to be reconstructed by summing the pre-feedback components
+    and excluding the feedback ones -- exactly the split
+    scripts/summarize_metrics.py's cost_rows() already uses, so this mirrors it
+    rather than inventing a second convention. Before this fix, cost() ignored
+    use_sf entirely and both rows silently showed the SF (larger) total.
+    """
     vals = []
     for summary in summaries:
-        block = (summary.get("cost") or {})
-        block = (block.get("token_counts") if token else block.get("timing")) or {}
-        value = (block.get(field) or {}).get("mean")
-        if value is not None:
-            vals.append(float(value))
+        block = summary.get("cost")
+        if not block:
+            continue
+        timing = block.get("timing") or {}
+        tokens = block.get("token_counts") or {}
+        if token:
+            value = (
+                _nested_mean(tokens, "total_tokens") if use_sf else
+                _nested_mean(tokens, "input_tokens") + _nested_mean(tokens, "initial_output_tokens")
+            )
+        else:
+            value = (
+                _nested_mean(timing, "example_seconds") if use_sf else
+                _nested_mean(timing, "retrieval_seconds")
+                + _nested_mean(timing, "rerank_seconds")
+                + _nested_mean(timing, "few_shot_seconds")
+                + _nested_mean(timing, "prompt_seconds")
+                + _nested_mean(timing, "generation_seconds")
+            )
+        vals.append(value)
     return sum(vals) / len(vals) if vals else None
 
 
@@ -246,8 +275,8 @@ def collect(prefix: str, base: str, suffix: str, use_sf: bool) -> Optional[dict]
     row: dict[str, Any] = {"n": len(summaries)}
     for metric in RAW_QUALITY_FIELDS:
         row[metric] = mean_std(values(summaries, metric, use_sf=use_sf))
-    row["sec"] = cost(summaries, "example_seconds", token=False)
-    row["tok"] = cost(summaries, "total_tokens", token=True)
+    row["sec"] = cost(summaries, token=False, use_sf=use_sf)
+    row["tok"] = cost(summaries, token=True, use_sf=use_sf)
 
     # MC-accuracy on the mixed table comes from the CasiMedicos subset (it is
     # undefined on the open-answer half, and the mixed-suffix metric files are
