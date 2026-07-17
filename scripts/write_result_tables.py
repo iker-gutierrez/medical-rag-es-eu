@@ -68,14 +68,16 @@ MEANQ_COMPONENTS = ("rouge_l_f1", "bertscore_f1", "mc_accuracy")
 # for the two to disagree on what "the" results are.
 RAW_QUALITY_FIELDS = ("rouge_l_f1", "bertscore_f1", "mc_accuracy")
 
-# Composite id: <experiment number><model letter>, e.g. "2a". The experiment
-# number (0-10) identifies the row/condition -- baseline is 0, e5 top 1 is 1, ...
+# Composite id: <experiment number><model letter>[']. The experiment number
+# (0-10) identifies the row/condition -- baseline is 0, e5 top 1 is 1, ...
 # domain-CasiMedicos is 10 -- assigned once from the canonical EXPERIMENTS list
 # order (ES and EU share the same label text and order, so one map serves both).
 # The model letter (a, b, c, ...) is assigned from that language's own model list
-# order (ES_MODELS / EU_MODELS). SF is NOT part of the id -- the noSF and SF rows
-# of the same condition+model share an id and are distinguished only by the SF
-# checkmark column, exactly as the two rows already sit next to each other.
+# order (ES_MODELS / EU_MODELS). A trailing ' marks the self-feedback row (e.g.
+# "2a" noSF, "2a'" SF), so an id read in running prose is unambiguous on its own
+# without also needing to say "SF"/"noSF" in words. Rows are additionally emitted
+# model-major, SF-minor (2a, 2a', 2b, 2b', ...) so the two rows of one model sit
+# adjacent -- see emit_table.
 # Both numbers and letters are global across every table (staged + appendix): a
 # row carried forward as a reference keeps the id it had when first introduced.
 EXPERIMENT_NUMBERS: dict[str, int] = {}
@@ -83,7 +85,8 @@ MODEL_LETTERS: dict[str, str] = {}
 
 
 def experiment_id(label: str, model: str, use_sf: bool) -> str:
-    return f"{EXPERIMENT_NUMBERS[label]}{MODEL_LETTERS[model]}"
+    tick = "'" if use_sf else ""
+    return f"{EXPERIMENT_NUMBERS[label]}{MODEL_LETTERS[model]}{tick}"
 
 
 # The staged main-text tables. Each is (file slug, caption stem, question, row labels).
@@ -334,10 +337,19 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
             best_of[metric] = max(vals)
 
     for label in labels:
-        for use_sf in (False, True):
-            for model, row in rows_for(experiments, models, label, suffix, use_sf):
+        # Model-major, SF-minor (2a, 2a', 2b, 2b', ...): the noSF and SF row of one
+        # model sit adjacent, rather than every model's noSF row then every model's
+        # SF row. rows_for() returns one use_sf slice at a time, in model order, so
+        # both slices are fetched up front and then interleaved by model index.
+        nosf_rows = dict(rows_for(experiments, models, label, suffix, False))
+        sf_rows = dict(rows_for(experiments, models, label, suffix, True))
+        for model in models:
+            for use_sf, rows_by_model in ((False, nosf_rows), (True, sf_rows)):
+                row = rows_by_model.get(model)
+                if row is None:
+                    continue
                 cells = [
-                    str(experiment_id(label, model, use_sf)),
+                    experiment_id(label, model, use_sf),
                     esc(model),
                     esc(display_label(label, best_config)),
                     r"\checkmark" if use_sf else "",
