@@ -149,7 +149,20 @@ STAGE_POOL = {
 # a MeanQ-max rule should make automatically -- automating "prefer lower std when
 # means are close" as a general rule risks silently overriding OTHER stages'
 # references too. So this pins the EU reference from the rerank stage onward.
-FORCED_REFERENCE = {"EU": "e5 top 1"}
+#
+# ES's tie-break is a different shape: it is not between two labels but between
+# two MODELS at the same label ("rerank top 5"). best_label()'s cross-model MeanQ
+# max there is silently Qwen3.5-9B (think) (71.34+/-0.38), beating Qwen3.5-9B
+# (no-think) (69.79+/-0.89) by 1.55 points -- a real gap, bigger than either std,
+# so unlike EU this is NOT "within noise". The reason no-think is carried forward
+# anyway is cost: think mode costs ~2.9x the wall-clock time and ~3.5x the tokens
+# (2.03s/1854.59tok vs 5.96s/6541.49tok) for that 1.55-point gain, the same
+# efficiency trade-off already made in the reasoning-pipeline section (see
+# scripts/write_reasoning_latex_table.py's ES_ROWS comment). FORCED_MODEL pins
+# which model's row counts as the winner at a forced label, so best_label() (and
+# the reference-row lookup) resolve to no-think instead of the cross-model max.
+FORCED_REFERENCE = {"EU": "e5 top 1", "ES": "rerank top 5"}
+FORCED_MODEL = {"ES": "Qwen3.5-9B (no-think)"}
 
 
 def esc(text: str) -> str:
@@ -291,7 +304,7 @@ def rows_for(experiments, models, label: str, suffix: str, use_sf: bool):
     return out
 
 
-def best_label(experiments, models, pool, suffix) -> Optional[str]:
+def best_label(experiments, models, pool, suffix, *, only_model: Optional[str] = None) -> Optional[str]:
     """The label in `pool` with the highest MeanQ, on the no-self-feedback
     prediction, over any model -- the same criterion (metric and SF state) used
     everywhere else in the project to choose the best RAG base config (see
@@ -299,12 +312,18 @@ def best_label(experiments, models, pool, suffix) -> Optional[str]:
     BERT-F1 alone, or searching over both SF states, could carry forward a
     different row than the one the rest of the project would call "best".
 
+    `only_model`, if given, restricts the search to that model's rows -- used to
+    resolve FORCED_MODEL overrides (see its comment), where the cross-model max at
+    a label is not the model actually carried forward.
+
     Resolved from the data rather than hard-coded, so the staging still carries the
     right row forward when the numbers change under the seeded re-run.
     """
     best, best_score = None, float("-inf")
     for label in pool:
-        for _, row in rows_for(experiments, models, label, suffix, use_sf=False):
+        for model, row in rows_for(experiments, models, label, suffix, use_sf=False):
+            if only_model and model != only_model:
+                continue
             mean = row["meanq"][0]
             if mean is not None and mean > best_score:
                 best_score, best = mean, label
@@ -313,7 +332,7 @@ def best_label(experiments, models, pool, suffix) -> Optional[str]:
 
 def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
                best_config: Optional[str] = None, quality=None,
-               highlight_labels: tuple[str, ...] = ()) -> list[str]:
+               highlight_rows: frozenset[tuple[str, str]] = frozenset()) -> list[str]:
     quality = quality or QUALITY
     # 4 label columns (#, Model, Experiment, SF) + quality + 2 cost columns.
     ncol = 4 + len(quality) + 2
@@ -374,7 +393,7 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
                 if row is None:
                     continue
                 exp_cell = esc(display_label(label, best_config))
-                if label in highlight_labels:
+                if (label, model) in highlight_rows:
                     exp_cell = r"\textbf{%s}" % exp_cell
                 cells = [
                     experiment_id(label, model, use_sf),
@@ -419,18 +438,57 @@ def build_language(experiments, models, lang: str, dev_slug: str, suffix: str) -
     """Four staged main-text tables + one full appendix table, for one language/dataset."""
     # ── staged main-text tables ────────────────────────────────────────────────
     forced = FORCED_REFERENCE.get(lang)
+    forced_model = FORCED_MODEL.get(lang)
     # If a manual override applies, resolve the tie-break note/highlight ONCE here,
     # against the pool where the forced and auto-picked configs first compete
-    # (STAGE_POOL["rerank"], which is exactly the set of rows the "retrieval" table
-    # displays) -- rather than recomputing it per stage, which would either miss the
-    # comparison (the retrieval table's own `pool` is None, so best_label() is never
-    # called for it) or recompute it redundantly for every later stage.
-    tie_break_labels: tuple[str, ...] = ()
+    # (STAGE_POOL["rerank"], the set of rows the "retrieval" table displays, unless
+    # the override is itself a rerank-stage label, in which case the comparison is
+    # cross-model at that one label instead) -- rather than recomputing it per
+    # stage, which would either miss the comparison (the retrieval table's own
+    # `pool` is None, so best_label() is never called for it) or recompute it
+    # redundantly for every later stage.
+    #
+    # Two override shapes are handled: EU picks between two LABELS for the same
+    # model (e5 top 1 vs e5 top 3, both Latxa) -- the note stresses they are within
+    # noise of each other. ES picks between two MODELS at the same label (Qwen
+    # no-think vs think, both "rerank top 5") -- the gap there is real (bigger than
+    # either std), so the note is cost-based instead: a genuine but small MeanQ
+    # gain that isn't worth ~3x the compute.
+    tie_break_note_slug = ""
     tie_break_note = ""
-    if forced:
+    highlight_rows: frozenset[tuple[str, str]] = frozenset()
+    if forced_model:
+        # Cross-model override at a single label: find which model would win it
+        # absent the override, and compare against the forced model's own row.
+        auto_pick_model = None
+        best_score = float("-inf")
+        for model, row in rows_for(experiments, models, forced, suffix, use_sf=False):
+            mean = row["meanq"][0]
+            if mean is not None and mean > best_score:
+                best_score, auto_pick_model = mean, model
+        if auto_pick_model and auto_pick_model != forced_model:
+            forced_row = dict(rows_for(experiments, models, forced, suffix, use_sf=False))[forced_model]
+            auto_row = dict(rows_for(experiments, models, forced, suffix, use_sf=False))[auto_pick_model]
+            f_mean, f_std = forced_row["meanq"]
+            a_mean, a_std = auto_row["meanq"]
+            sec_ratio = auto_row["sec"] / forced_row["sec"] if forced_row["sec"] else None
+            tok_ratio = auto_row["tok"] / forced_row["tok"] if forced_row["tok"] else None
+            tie_break_note_slug = "rerank"
+            highlight_rows = frozenset({(forced, forced_model), (forced, auto_pick_model)})
+            tie_break_note = (
+                f" MeanQ favours {auto_pick_model} over {forced_model} at {forced} "
+                f"({a_mean:.2f}$\\pm${a_std:.2f} vs {f_mean:.2f}$\\pm${f_std:.2f}), a real "
+                f"gain rather than noise, but it costs roughly {sec_ratio:.1f}$\\times$ the "
+                f"latency and {tok_ratio:.1f}$\\times$ the tokens for it: {forced_model} is "
+                f"carried forward into every later stage as the efficient choice."
+            )
+    elif forced:
         auto_pick = best_label(experiments, models, STAGE_POOL["rerank"], suffix)
         if auto_pick and auto_pick != forced:
-            tie_break_labels = (forced, auto_pick)
+            tie_break_note_slug = "retrieval"
+            highlight_rows = frozenset(
+                (label, model) for label in (forced, auto_pick) for model in models
+            )
             tie_break_note = (
                 f" MeanQ narrowly favours {auto_pick} over {forced}, but the two are "
                 f"within a seed's worth of noise of each other, {forced} has the tighter "
@@ -440,11 +498,20 @@ def build_language(experiments, models, lang: str, dev_slug: str, suffix: str) -
 
     for slug, stem, question, labels in STAGES:
         pool = STAGE_POOL.get(slug)
-        auto_reference = best_label(experiments, models, pool, suffix) if pool else None
+        auto_reference = (
+            best_label(experiments, models, pool, suffix, only_model=forced_model)
+            if pool and forced_model else
+            best_label(experiments, models, pool, suffix) if pool else None
+        )
         # The override only applies once the forced config has actually appeared as
         # a candidate (from "rerank" onward -- "retrieval" has no reference row yet,
-        # it's where e5 top 1/3 are first compared against each other).
-        reference = forced if (pool and forced) else auto_reference
+        # it's where e5 top 1/3 are first compared against each other). At the stage
+        # where the tie-break comparison itself is being made (tie_break_note_slug),
+        # the forced label is one of that stage's OWN rows, not a carried-forward
+        # reference -- prepending it there would duplicate the row (ES: "rerank top
+        # 5" is both the forced pick and a member of the "rerank" stage's own labels).
+        is_tie_break_stage = slug == tie_break_note_slug and tie_break_note
+        reference = None if is_tie_break_stage else (forced if (pool and forced) else auto_reference)
         caption = (
             f"{stem} ({lang}, {dev_slug} dev). {question}"
             + (f" The reference row is the best configuration carried forward from the "
@@ -452,7 +519,7 @@ def build_language(experiments, models, lang: str, dev_slug: str, suffix: str) -
                f"system built so far. Best value per metric in bold."
                if reference else
                f" Best value per metric in bold.{tie_break_note}"
-               if slug == "retrieval" and tie_break_note else
+               if is_tie_break_stage else
                " Best value per metric in bold.")
         )
         shown = ([reference] if reference else []) + labels
@@ -462,7 +529,7 @@ def build_language(experiments, models, lang: str, dev_slug: str, suffix: str) -
             caption=caption, short=f"{stem} ({lang}, {dev_slug})",
             tag=f"{lang.lower()}-{dev_slug}-{slug}", suffix=suffix,
             best_config=reference,
-            highlight_labels=tie_break_labels if slug == "retrieval" else (),
+            highlight_rows=highlight_rows if slug == tie_break_note_slug else frozenset(),
         )) + "\n")
 
     # ── full appendix table: all eleven conditions ─────────────────────────────
