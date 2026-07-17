@@ -629,19 +629,15 @@ def build_language(experiments, models, lang: str, dev_slug: str, suffix: str) -
         shown = ([ref_label] if ref_label else []) + labels
         restrict = {ref_label: reference[1]} if reference else None
         # A carried-forward reference row shows only its better-MeanQ SF state --
-        # both states would double the row without adding to what the table is
-        # comparing (whether the OTHER conditions beat the reference, not whether
-        # self-feedback helps the reference itself). The tie-break comparison rows
-        # (highlight_rows, at their own stage) get the same treatment for the same
-        # reason: EU's e5top1/top3 and ES's Qwen think/no-think are both already
-        # pinned to noSF by convention (best_label()'s use_sf=False search), so
-        # collapsing to the best SF state here reproduces that pin instead of
-        # fighting it.
-        stage_best_sf_only = (
-            frozenset({(ref_label, reference[1])}) if reference else
-            highlight_rows if slug == tie_break_note_slug else
-            frozenset()
-        )
+        # both states would double the row without adding to what a LATER stage's
+        # table is comparing (whether the OTHER conditions beat the reference, not
+        # whether self-feedback helps the reference itself). The tie-break's OWN
+        # stage (ES's rerank table, EU's retrieval table) is different: that table
+        # IS the SF-vs-noSF-inclusive comparison the tie-break is drawn from, so it
+        # shows every row (6a/6a'/6b/6b'/6c/6c', etc.) -- only the noSF halves of
+        # the two winning candidates (highlight_rows) are what get pinned forward
+        # into later stages' reference rows.
+        stage_best_sf_only = frozenset({(ref_label, reference[1])}) if reference else frozenset()
         out = OUT_DIR / f"table_{lang.lower()}_{dev_slug}_{slug}.tex"
         out.write_text("\n".join(emit_table(
             experiments, models, shown,
