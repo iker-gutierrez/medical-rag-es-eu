@@ -131,15 +131,14 @@ DOMAIN_RENAME = {
 # EU (configs/experiments/1049_llama31_8b_rag_sns1064_...,
 # 1060_latxa_..._sns1064_...): Llama's has retrieval_top_k=5 (matches its own
 # pin, e5 top 5 -- rewire_dependent_configs.py's original auto-pick happened to
-# already land there, no rerun needed). Latxa's has retrieval_top_k=1 as of the
-# rerun-in-progress fix (was top_k=3 before, from the same auto-pick, before any
-# manual override existed -- matches its pin, e5 top 1, once the rerun lands;
-# until then the table still shows the OLD top_k=3 data, so this stays "e5 top
-# 3" for Latxa specifically -- update once new metrics exist).
+# already land there, no rerun needed). Latxa's has retrieval_top_k=1 (rewired
+# from the old auto-pick's top_k=3, then re-run 2026-07-17 via
+# scripts/run_latxa_row8_9_10.py -- both rows 9/10 confirmed at
+# retrieval_top_k=1 in predictions.meta.json), matching its pin, e5 top 1.
 DOMAIN_BASE_LABEL: dict[str, dict[str, str]] = {
     "ES": {"Mistral-7B": "rerank top 5", "Qwen3.5-9B (no-think)": "rerank top 5",
            "Qwen3.5-9B (think)": "rerank top 5"},
-    "EU": {"Llama-3.1-8B": "e5 top 5", "Latxa-8B": "e5 top 3"},
+    "EU": {"Llama-3.1-8B": "e5 top 5", "Latxa-8B": "e5 top 1"},
 }
 
 
