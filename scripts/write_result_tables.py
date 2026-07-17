@@ -578,16 +578,19 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
                     f"{row['tok']:.0f}" if row["tok"] is not None else "---",
                 ]
                 lines.append(row_prefix + " & ".join(cells) + r" \\")
-        lines.append(r"\addlinespace[2pt]")
         # Dashed rule after the last reference-row label, splitting "carried
         # forward from earlier stages" from "new this stage" -- separator_after
         # counts LABELS, not rendered rows, since a reference label can itself
-        # expand to several rows (multiple models, or noSF+SF). Extra space
-        # AFTER the rule too (not just before it), so it doesn't crowd the row
-        # that follows -- \cdashline leaves no vertical gap of its own.
+        # expand to several rows (multiple models, or noSF+SF). Extra space on
+        # BOTH sides (4pt, vs the normal 2pt between row groups) so the rule
+        # reads as a deliberate section break rather than just another gap --
+        # \cdashline leaves no vertical gap of its own on either side.
         if separator_after and label_index == separator_after - 1:
+            lines.append(r"\addlinespace[4pt]")
             lines.append(r"\cdashline{1-%d}" % ncol)
             lines.append(r"\addlinespace[4pt]")
+        else:
+            lines.append(r"\addlinespace[2pt]")
     lines += [
         r"\end{longtable}",
         r"\end{scriptsize}",
