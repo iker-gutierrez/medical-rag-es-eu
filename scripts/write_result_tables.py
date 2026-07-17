@@ -123,12 +123,22 @@ def display_label(label: str, best_config: Optional[str]) -> str:
     return label
 
 
-# Which rows each stage may pick its carried-forward reference from.
+# Which rows each stage may pick its carried-forward reference from. Cumulative:
+# each stage's pool is every row shown in this or an earlier stage, not just the
+# stage immediately before it -- otherwise a genuinely best config (e.g. e5 top 5,
+# which can beat every reranked row) could win one stage and then be structurally
+# ineligible to be carried into the next, breaking the "reference = best system
+# built so far" property the captions claim. "3-shot, no RAG" is deliberately
+# excluded from the domain pool: it retrieves nothing, so it cannot be the RAG
+# base a domain-\emph{restricted} row is built on (same reasoning as
+# rewire_dependent_configs.py's staged-ablation pool for the same rows).
 STAGE_POOL = {
     "rerank": ["e5 top 1", "e5 top 3", "e5 top 5"],
-    "fewshot": ["rerank top 1", "rerank top 3", "rerank top 5"],
-    "domain": ["rerank top 1", "rerank top 3", "rerank top 5",
-               "3-shot, no RAG", "3-shot + rerank top 5"],
+    "fewshot": ["e5 top 1", "e5 top 3", "e5 top 5",
+                "rerank top 1", "rerank top 3", "rerank top 5"],
+    "domain": ["e5 top 1", "e5 top 3", "e5 top 5",
+               "rerank top 1", "rerank top 3", "rerank top 5",
+               "3-shot + rerank top 5"],
 }
 
 
@@ -272,18 +282,22 @@ def rows_for(experiments, models, label: str, suffix: str, use_sf: bool):
 
 
 def best_label(experiments, models, pool, suffix) -> Optional[str]:
-    """The label in `pool` with the highest BERT-F1 over any model / SF setting.
+    """The label in `pool` with the highest MeanQ, on the no-self-feedback
+    prediction, over any model -- the same criterion (metric and SF state) used
+    everywhere else in the project to choose the best RAG base config (see
+    scripts/meanq.py and reports/metrics/*_dev_ablation_results.md). Ranking by
+    BERT-F1 alone, or searching over both SF states, could carry forward a
+    different row than the one the rest of the project would call "best".
 
     Resolved from the data rather than hard-coded, so the staging still carries the
     right row forward when the numbers change under the seeded re-run.
     """
     best, best_score = None, float("-inf")
     for label in pool:
-        for use_sf in (False, True):
-            for _, row in rows_for(experiments, models, label, suffix, use_sf):
-                mean = row["bertscore_f1"][0]
-                if mean is not None and mean > best_score:
-                    best_score, best = mean, label
+        for _, row in rows_for(experiments, models, label, suffix, use_sf=False):
+            mean = row["meanq"][0]
+            if mean is not None and mean > best_score:
+                best_score, best = mean, label
     return best
 
 
