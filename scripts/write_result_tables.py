@@ -339,16 +339,22 @@ def rows_for(experiments, models, label: str, suffix: str, use_sf: bool):
     return out
 
 
-def best_label(experiments, models, pool, suffix, *, only_model: Optional[str] = None) -> Optional[str]:
-    """The label in `pool` with the highest MeanQ, on the no-self-feedback
-    prediction, over any model -- the same criterion (metric and SF state) used
+def best_label(experiments, models, pool, suffix, *, only_model: Optional[str] = None) -> Optional[tuple[str, str]]:
+    """The (label, model) pair in `pool` with the highest MeanQ, on the
+    no-self-feedback prediction -- the same criterion (metric and SF state) used
     everywhere else in the project to choose the best RAG base config (see
     scripts/meanq.py and reports/metrics/*_dev_ablation_results.md). Ranking by
     BERT-F1 alone, or searching over both SF states, could carry forward a
     different row than the one the rest of the project would call "best".
 
+    Returns the winning MODEL alongside the label, not just the label: the
+    reference carried into later stages is one specific config-model
+    combination, not "this label, whichever model got there" -- showing every
+    model's row under a label that only one of them actually won is misleading
+    (see FORCED_MODEL's comment for the concrete case this caused).
+
     `only_model`, if given, restricts the search to that model's rows -- used to
-    resolve FORCED_MODEL overrides (see its comment), where the cross-model max at
+    resolve FORCED_MODEL/TIE_BREAK_MODEL overrides, where the cross-model max at
     a label is not the model actually carried forward.
 
     Resolved from the data rather than hard-coded, so the staging still carries the
@@ -361,14 +367,21 @@ def best_label(experiments, models, pool, suffix, *, only_model: Optional[str] =
                 continue
             mean = row["meanq"][0]
             if mean is not None and mean > best_score:
-                best_score, best = mean, label
+                best_score, best = mean, (label, model)
     return best
 
 
 def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
                best_config: Optional[str] = None, quality=None,
-               highlight_rows: frozenset[tuple[str, str]] = frozenset()) -> list[str]:
+               highlight_rows: frozenset[tuple[str, str]] = frozenset(),
+               restrict: Optional[dict[str, str]] = None) -> list[str]:
+    """`labels` is the row labels to show, in order. `restrict`, if given, maps a
+    label to the ONE model whose row should be shown for it -- used for a
+    carried-forward reference row, which is one specific config-model
+    combination, not every model's version of that label (a stage's own
+    comparison labels are never in `restrict`, so they still show every model)."""
     quality = quality or QUALITY
+    restrict = restrict or {}
     # 4 label columns (#, Model, Experiment, SF) + quality + 2 cost columns.
     ncol = 4 + len(quality) + 2
     colspec = r"r l l c " + "c " * len(quality) + r"c c"
@@ -405,8 +418,11 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
     # says which *metric* a configuration wins on, rather than implying it wins on all.
     gathered = []
     for label in labels:
+        only_model = restrict.get(label)
         for use_sf in (False, True):
             for model, row in rows_for(experiments, models, label, suffix, use_sf):
+                if only_model and model != only_model:
+                    continue
                 gathered.append((label, model, use_sf, row))
 
     best_of: dict[str, float] = {}
@@ -422,7 +438,10 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
         # both slices are fetched up front and then interleaved by model index.
         nosf_rows = dict(rows_for(experiments, models, label, suffix, False))
         sf_rows = dict(rows_for(experiments, models, label, suffix, True))
+        only_model = restrict.get(label)
         for model in models:
+            if only_model and model != only_model:
+                continue
             for use_sf, rows_by_model in ((False, nosf_rows), (True, sf_rows)):
                 row = rows_by_model.get(model)
                 if row is None:
@@ -522,7 +541,8 @@ def build_language(experiments, models, lang: str, dev_slug: str, suffix: str) -
                 f"carried forward into every later stage as the efficient choice."
             )
     elif forced:
-        auto_pick = best_label(experiments, models, STAGE_POOL["rerank"], suffix, only_model=TIE_BREAK_MODEL.get(lang))
+        auto_pick_result = best_label(experiments, models, STAGE_POOL["rerank"], suffix, only_model=TIE_BREAK_MODEL.get(lang))
+        auto_pick = auto_pick_result[0] if auto_pick_result else None
         if auto_pick and auto_pick != forced:
             tie_break_note_slug = "retrieval"
             pin_model = TIE_BREAK_MODEL.get(lang)
@@ -536,6 +556,11 @@ def build_language(experiments, models, lang: str, dev_slug: str, suffix: str) -
                 f"standard deviation, and it costs roughly half the tokens and latency: "
                 f"{forced} is the config carried forward into every later stage."
             )
+
+    # The forced reference's winning MODEL, resolved once: ES pins it directly
+    # (FORCED_MODEL), EU's pin is Latxa specifically (TIE_BREAK_MODEL) -- both are
+    # a single config-model combination, never "this label, any model".
+    forced_pin_model = forced_model or TIE_BREAK_MODEL.get(lang)
 
     for slug, stem, question, labels in STAGES:
         pool = STAGE_POOL.get(slug)
@@ -552,24 +577,29 @@ def build_language(experiments, models, lang: str, dev_slug: str, suffix: str) -
         # reference -- prepending it there would duplicate the row (ES: "rerank top
         # 5" is both the forced pick and a member of the "rerank" stage's own labels).
         is_tie_break_stage = slug == tie_break_note_slug and tie_break_note
-        reference = None if is_tie_break_stage else (forced if (pool and forced) else auto_reference)
+        reference: Optional[tuple[str, str]] = None if is_tie_break_stage else (
+            (forced, forced_pin_model) if (pool and forced) else auto_reference
+        )
+        ref_label = reference[0] if reference else None
         caption = (
             f"{stem} ({lang}, {dev_slug} dev). {question}"
             + (f" The reference row is the best configuration carried forward from the "
-               f"previous stage ({reference}), so each comparison is against the best "
-               f"system built so far. Best value per metric in bold."
+               f"previous stage ({ref_label}, {reference[1]}), so each comparison is "
+               f"against the best system built so far. Best value per metric in bold."
                if reference else
                f" Best value per metric in bold.{tie_break_note}"
                if is_tie_break_stage else
                " Best value per metric in bold.")
         )
-        shown = ([reference] if reference else []) + labels
+        shown = ([ref_label] if ref_label else []) + labels
+        restrict = {ref_label: reference[1]} if reference else None
         out = OUT_DIR / f"table_{lang.lower()}_{dev_slug}_{slug}.tex"
         out.write_text("\n".join(emit_table(
             experiments, models, shown,
             caption=caption, short=f"{stem} ({lang}, {dev_slug})",
             tag=f"{lang.lower()}-{dev_slug}-{slug}", suffix=suffix,
-            best_config=reference,
+            best_config=ref_label,
+            restrict=restrict,
             highlight_rows=highlight_rows if slug == tie_break_note_slug else frozenset(),
         )) + "\n")
 
