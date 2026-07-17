@@ -617,18 +617,25 @@ def build_language(experiments, models, lang: str, dev_slug: str, suffix: str) -
                     f"carried forward into every later stage rather than picking one."
                 )
 
-    for slug, stem, question, labels in STAGES:
-        is_pin_own_stage = slug == PIN_OWN_STAGE.get(lang)
+    stage_slugs = [s[0] for s in STAGES]
+    pin_own_stage = PIN_OWN_STAGE.get(lang)
+    pin_own_index = stage_slugs.index(pin_own_stage) if pin_own_stage in stage_slugs else -1
+    for stage_index, (slug, stem, question, labels) in enumerate(STAGES):
+        is_pin_own_stage = slug == pin_own_stage
         is_tie_break_stage = slug == tie_break_stage
-        # The pins only apply once they've actually appeared as candidates (from
-        # the pins' own stage onward). At that stage, the pinned label(s) are
-        # already members of that stage's OWN `labels` -- prepending them there
-        # would duplicate the rows (ES: "rerank top 5" is both a pin and one of
-        # "rerank"'s own labels; EU: "e5 top 1" is one of "retrieval"'s own
-        # labels) -- so no reference is prepended there, and the stage shows
-        # every SF state of its own rows (best_sf_only left empty) so the
-        # comparison the pins are drawn from is visible, not asserted.
-        reference = [] if (is_pin_own_stage or not pins) else pins
+        # The pins only apply from the pin's own stage ONWARD (stage_index >
+        # pin_own_index) -- stages BEFORE it (e.g. ES's "retrieval", which comes
+        # before "rerank", the pins' own stage) haven't reached the point in the
+        # pipeline where the pinned config exists yet, so nothing is prepended
+        # there either. At the pin's own stage, the pinned label(s) are already
+        # members of that stage's OWN `labels` -- prepending them there would
+        # duplicate the rows (ES: "rerank top 5" is both a pin and one of
+        # "rerank"'s own labels; EU: "e5 top 1"/"e5 top 5" are among
+        # "retrieval"'s own labels) -- so no reference is prepended there either,
+        # and the stage shows every SF state of its own rows (best_sf_only left
+        # empty) so the comparison the pins are drawn from is visible, not
+        # asserted.
+        reference = [] if (stage_index <= pin_own_index or not pins) else pins
         ref_labels = sorted({label for label, _ in reference})
         ref_items = [f"{lbl}, {mdl}" for lbl, mdl in reference]
         if len(ref_items) <= 2:
