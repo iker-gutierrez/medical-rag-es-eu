@@ -570,7 +570,12 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
                     # when that cell is also the column's best value.
                     tie_break_sf_ok = not use_sf or (label, model) in best_sf_only
                     is_tie_break = metric == "meanq" and tie_break_sf_ok and (label, model) in highlight_rows
-                    if is_col_best or is_tie_break:
+                    # Every blue-bar (pinned) row also gets its MeanQ bolded --
+                    # the row color already marks "this model's chosen config",
+                    # bolding MeanQ ties that back to the number that made it
+                    # the choice, not just a whole-row splash of color.
+                    is_pin_meanq = metric == "meanq" and is_pinned_row
+                    if is_col_best or is_tie_break or is_pin_meanq:
                         cell = r"\textbf{%s}" % cell
                     cells.append(cell)
                 cells += [
