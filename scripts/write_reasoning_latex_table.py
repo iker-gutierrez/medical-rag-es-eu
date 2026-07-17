@@ -176,11 +176,13 @@ def build(rows, lang: str, suffix: str, dev: str, *, calls_column: bool = False)
         if not summaries:
             continue
         mc_summaries = summaries_for(stem, mc_suffix) if mc_suffix else []
-        for use_sf in ((False, True) if has_sf else (False,)):
+        sf_states = (False, True) if has_sf else (False,)
+        rows_this_label = []
+        for use_sf in sf_states:
             row = {m: metric(summaries, m, use_sf) for m, _ in QUALITY if m != "meanq"}
             row["mc_accuracy"] = metric(mc_summaries, "mc_accuracy", use_sf) if mc_summaries else (None, None)
             row["meanq"] = meanq_per_seed(summaries, mc_summaries, use_sf)
-            gathered.append({
+            rows_this_label.append({
                 "label": label,
                 "sf": use_sf,
                 "is_baseline": has_sf,
@@ -189,6 +191,15 @@ def build(rows, lang: str, suffix: str, dev: str, *, calls_column: bool = False)
                 "tok": cost(summaries, True, use_sf=use_sf),
                 "calls": llm_calls(stem),
             })
+        if has_sf and len(rows_this_label) == 2:
+            # The baseline is the frozen RAG config this whole table holds
+            # fixed -- like a carried-forward reference row in the ablation
+            # tables, only its better-MeanQ SF state is shown, not both.
+            nosf_mean = rows_this_label[0]["quality"]["meanq"][0]
+            sf_mean = rows_this_label[1]["quality"]["meanq"][0]
+            keep_sf = sf_mean is not None and (nosf_mean is None or sf_mean > nosf_mean)
+            rows_this_label = [rows_this_label[1] if keep_sf else rows_this_label[0]]
+        gathered.extend(rows_this_label)
 
     best = {}
     for m, _ in QUALITY:
@@ -236,11 +247,18 @@ def build(rows, lang: str, suffix: str, dev: str, *, calls_column: bool = False)
 
     calls_notes = []
     for i, g in enumerate(gathered, start=1):
+        # The baseline is the frozen RAG config every pipeline below it is
+        # compared against -- highlighted the same way a carried-forward
+        # reference row is in the ablation tables (scripts/write_result_tables.py):
+        # a translucent blue row background, with its MeanQ bolded too.
+        row_prefix = r"\rowcolor{pinnedrow}" if g["is_baseline"] else ""
         cells = [str(i), esc(g["label"]), r"\checkmark" if g["sf"] else ""]
         for m, _ in QUALITY:
             mean, std = g["quality"][m]
             cell = fmt(mean, std)
-            if mean is not None and m in best and mean == best[m]:
+            is_col_best = mean is not None and m in best and mean == best[m]
+            is_baseline_meanq = m == "meanq" and g["is_baseline"]
+            if is_col_best or is_baseline_meanq:
                 cell = r"\textbf{%s}" % cell
             cells.append(cell)
         cells += [
@@ -249,9 +267,17 @@ def build(rows, lang: str, suffix: str, dev: str, *, calls_column: bool = False)
         ]
         if calls_column:
             cells.append(f"{g['calls']:.1f}" if g["calls"] is not None else "1.0")
-        lines.append(" & ".join(cells) + r" \\")
+        lines.append(row_prefix + " & ".join(cells) + r" \\")
         if not calls_column and g["calls"] is not None:
             calls_notes.append(f"{g['label']} {g['calls']:.1f}")
+        # Dashed rule after the baseline row, splitting "the frozen config
+        # everything else is compared against" from "the pipelines being
+        # compared" -- same convention as the ablation tables' reference/
+        # new-comparison split, with matching spacing on both sides.
+        if g["is_baseline"]:
+            lines.append(r"\addlinespace[4pt]")
+            lines.append(r"\cdashline{1-%d}" % ncol)
+            lines.append(r"\addlinespace[4pt]")
 
     lines += [
         r"\end{longtable}",
