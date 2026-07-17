@@ -164,6 +164,12 @@ STAGE_POOL = {
 FORCED_REFERENCE = {"EU": "e5 top 1", "ES": "rerank top 5"}
 FORCED_MODEL = {"ES": "Qwen3.5-9B (no-think)"}
 
+# EU's tie-break is between two LABELS but for a single model (Latxa): the
+# highlighted MeanQ cells, and the auto-pick search used to build the tie-break
+# note, must be restricted to Latxa alone -- otherwise Llama's own e5top1/e5top3
+# rows (a different, unrelated comparison) get swept in too.
+TIE_BREAK_MODEL = {"EU": "Latxa-8B"}
+
 
 def esc(text: str) -> str:
     return (str(text).replace("&", r"\&").replace("%", r"\%")
@@ -487,11 +493,13 @@ def build_language(experiments, models, lang: str, dev_slug: str, suffix: str) -
                 f"carried forward into every later stage as the efficient choice."
             )
     elif forced:
-        auto_pick = best_label(experiments, models, STAGE_POOL["rerank"], suffix)
+        auto_pick = best_label(experiments, models, STAGE_POOL["rerank"], suffix, only_model=TIE_BREAK_MODEL.get(lang))
         if auto_pick and auto_pick != forced:
             tie_break_note_slug = "retrieval"
-            highlight_rows = frozenset(
-                (label, model) for label in (forced, auto_pick) for model in models
+            pin_model = TIE_BREAK_MODEL.get(lang)
+            highlight_rows = (
+                frozenset({(forced, pin_model), (auto_pick, pin_model)}) if pin_model else
+                frozenset((label, model) for label in (forced, auto_pick) for model in models)
             )
             tie_break_note = (
                 f" MeanQ narrowly favours {auto_pick} over {forced}, but the two are "
