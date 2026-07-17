@@ -141,6 +141,16 @@ STAGE_POOL = {
                "3-shot + rerank top 5"],
 }
 
+# Manual tie-break: best_label() would pick "e5 top 3" for EU (MeanQ 47.64+/-3.59,
+# the cross-model max -- Latxa's own best), but "e5 top 1" (47.17+/-2.87) is within
+# noise of it, has a visibly tighter std, and costs roughly half the tokens/latency
+# (see the EU retrieval-stage caption for the numbers). That is a judgment call
+# ("mean+std+cost jointly favour the cheaper, more stable config"), not something
+# a MeanQ-max rule should make automatically -- automating "prefer lower std when
+# means are close" as a general rule risks silently overriding OTHER stages'
+# references too. So this pins the EU reference from the rerank stage onward.
+FORCED_REFERENCE = {"EU": "e5 top 1"}
+
 
 def esc(text: str) -> str:
     return (str(text).replace("&", r"\&").replace("%", r"\%")
@@ -302,7 +312,8 @@ def best_label(experiments, models, pool, suffix) -> Optional[str]:
 
 
 def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
-               best_config: Optional[str] = None, quality=None) -> list[str]:
+               best_config: Optional[str] = None, quality=None,
+               highlight_labels: tuple[str, ...] = ()) -> list[str]:
     quality = quality or QUALITY
     # 4 label columns (#, Model, Experiment, SF) + quality + 2 cost columns.
     ncol = 4 + len(quality) + 2
@@ -362,10 +373,13 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
                 row = rows_by_model.get(model)
                 if row is None:
                     continue
+                exp_cell = esc(display_label(label, best_config))
+                if label in highlight_labels:
+                    exp_cell = r"\textbf{%s}" % exp_cell
                 cells = [
                     experiment_id(label, model, use_sf),
                     esc(model),
-                    esc(display_label(label, best_config)),
+                    exp_cell,
                     r"\checkmark" if use_sf else "",
                 ]
                 for metric, _ in quality:
@@ -404,26 +418,52 @@ def assign_ids(experiments, models) -> None:
 def build_language(experiments, models, lang: str, dev_slug: str, suffix: str) -> None:
     """Four staged main-text tables + one full appendix table, for one language/dataset."""
     # ── staged main-text tables ────────────────────────────────────────────────
-    carried: Optional[str] = None
+    forced = FORCED_REFERENCE.get(lang)
+    # If a manual override applies, resolve the tie-break note/highlight ONCE here,
+    # against the pool where the forced and auto-picked configs first compete
+    # (STAGE_POOL["rerank"], which is exactly the set of rows the "retrieval" table
+    # displays) -- rather than recomputing it per stage, which would either miss the
+    # comparison (the retrieval table's own `pool` is None, so best_label() is never
+    # called for it) or recompute it redundantly for every later stage.
+    tie_break_labels: tuple[str, ...] = ()
+    tie_break_note = ""
+    if forced:
+        auto_pick = best_label(experiments, models, STAGE_POOL["rerank"], suffix)
+        if auto_pick and auto_pick != forced:
+            tie_break_labels = (forced, auto_pick)
+            tie_break_note = (
+                f" MeanQ narrowly favours {auto_pick} over {forced}, but the two are "
+                f"within a seed's worth of noise of each other, {forced} has the tighter "
+                f"standard deviation, and it costs roughly half the tokens and latency: "
+                f"{forced} is the config carried forward into every later stage."
+            )
+
     for slug, stem, question, labels in STAGES:
         pool = STAGE_POOL.get(slug)
-        reference = best_label(experiments, models, pool, suffix) if pool else None
-        shown = ([reference] if reference else []) + labels
+        auto_reference = best_label(experiments, models, pool, suffix) if pool else None
+        # The override only applies once the forced config has actually appeared as
+        # a candidate (from "rerank" onward -- "retrieval" has no reference row yet,
+        # it's where e5 top 1/3 are first compared against each other).
+        reference = forced if (pool and forced) else auto_reference
         caption = (
             f"{stem} ({lang}, {dev_slug} dev). {question}"
             + (f" The reference row is the best configuration carried forward from the "
                f"previous stage ({reference}), so each comparison is against the best "
                f"system built so far. Best value per metric in bold."
-               if reference else " Best value per metric in bold.")
+               if reference else
+               f" Best value per metric in bold.{tie_break_note}"
+               if slug == "retrieval" and tie_break_note else
+               " Best value per metric in bold.")
         )
+        shown = ([reference] if reference else []) + labels
         out = OUT_DIR / f"table_{lang.lower()}_{dev_slug}_{slug}.tex"
         out.write_text("\n".join(emit_table(
             experiments, models, shown,
             caption=caption, short=f"{stem} ({lang}, {dev_slug})",
             tag=f"{lang.lower()}-{dev_slug}-{slug}", suffix=suffix,
             best_config=reference,
+            highlight_labels=tie_break_labels if slug == "retrieval" else (),
         )) + "\n")
-        carried = reference
 
     # ── full appendix table: all eleven conditions ─────────────────────────────
     all_labels = [e[0] for e in experiments]
