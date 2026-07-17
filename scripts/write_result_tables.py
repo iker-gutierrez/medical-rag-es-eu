@@ -393,8 +393,6 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
                 if row is None:
                     continue
                 exp_cell = esc(display_label(label, best_config))
-                if (label, model) in highlight_rows:
-                    exp_cell = r"\textbf{%s}" % exp_cell
                 cells = [
                     experiment_id(label, model, use_sf),
                     esc(model),
@@ -404,7 +402,13 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
                 for metric, _ in quality:
                     mean, std = row[metric]
                     cell = fmt(mean, std)
-                    if mean is not None and metric in best_of and mean == best_of[metric]:
+                    is_col_best = mean is not None and metric in best_of and mean == best_of[metric]
+                    # highlight_rows marks a tie-break comparison's own MeanQ cell
+                    # (not the whole row), and only on the noSF row -- the config
+                    # being weighed is always the noSF one. Guarded against
+                    # double-wrapping when that cell is also the column's best value.
+                    is_tie_break = metric == "meanq" and not use_sf and (label, model) in highlight_rows
+                    if is_col_best or is_tie_break:
                         cell = r"\textbf{%s}" % cell
                     cells.append(cell)
                 cells += [
