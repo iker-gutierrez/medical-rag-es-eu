@@ -53,7 +53,7 @@ QUALITY = [
 # clipping the rightmost column; this compact form fits within the same column
 # width the other rows use.
 ES_BASELINE_DESC = "Qwen3.5-9B no-think, rerank top 5"
-EU_BASELINE_DESC = "Latxa-8B, e5 top 1"
+EU_BASELINE_DESC = "Latxa, e5 top 1"
 ES_ROWS = [
     (f"Single-pass RAG: {ES_BASELINE_DESC}", "1134_qwen35_9b_rag_e5_rerank5_no_think_extractive_mixed_dev", True),
     ("Structured CoT", "1330_qwen35_9b_structured_cot_e5_rerank5_no_think_extractive_mixed_dev", False),

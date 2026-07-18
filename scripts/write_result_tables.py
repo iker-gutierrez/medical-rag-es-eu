@@ -136,9 +136,9 @@ DOMAIN_RENAME = {
 # scripts/run_latxa_row8_9_10.py -- both rows 9/10 confirmed at
 # retrieval_top_k=1 in predictions.meta.json), matching its pin, e5 top 1.
 DOMAIN_BASE_LABEL: dict[str, dict[str, str]] = {
-    "ES": {"Mistral-7B": "rerank top 5", "Qwen3.5-9B": "rerank top 5",
-           "Qwen3.5-9B-think": "rerank top 5"},
-    "EU": {"Llama-3.1-8B": "e5 top 5", "Latxa-8B": "e5 top 1"},
+    "ES": {"Mistral": "rerank top 5", "Qwen no-think": "rerank top 5",
+           "Qwen think": "rerank top 5"},
+    "EU": {"Llama": "e5 top 5", "Latxa": "e5 top 1"},
 }
 
 
@@ -201,9 +201,9 @@ STAGE_POOL = {
 # BOTH are kept as reference rows so the reader can judge the trade-off
 # directly. Mistral's own pin is single (rerank top 5, no competing candidate).
 FORCED_REFERENCES: dict[str, list[tuple[str, str]]] = {
-    "EU": [("e5 top 5", "Llama-3.1-8B"), ("e5 top 1", "Latxa-8B")],
-    "ES": [("rerank top 5", "Mistral-7B"),
-           ("rerank top 5", "Qwen3.5-9B"), ("rerank top 5", "Qwen3.5-9B-think")],
+    "EU": [("e5 top 5", "Llama"), ("e5 top 1", "Latxa")],
+    "ES": [("rerank top 5", "Mistral"),
+           ("rerank top 5", "Qwen no-think"), ("rerank top 5", "Qwen think")],
 }
 # The stage where each language's pinned label(s) are members of that stage's OWN
 # `labels` (EU: "retrieval", where e5 top 1/top 5 are among the four rows; ES:
@@ -217,7 +217,7 @@ PIN_OWN_STAGE = {"EU": "retrieval", "ES": "rerank"}
 # ES's Mistral) is a clean single winner with nothing to explain beyond the
 # normal per-metric bolding.
 TIE_BREAK_PAIRS: dict[str, list[tuple[str, str]]] = {
-    "ES": [("rerank top 5", "Qwen3.5-9B"), ("rerank top 5", "Qwen3.5-9B-think")],
+    "ES": [("rerank top 5", "Qwen no-think"), ("rerank top 5", "Qwen think")],
 }
 TIE_BREAK_STAGE = {"ES": "rerank"}
 
@@ -369,8 +369,8 @@ def collect(prefix: str, base: str, suffix: str, use_sf: bool) -> Optional[dict]
 # ── models per language ───────────────────────────────────────────────────────
 # Each EXPERIMENTS row is (label, id, base, id, base, ...) -- one (id, base) pair
 # per model, in the order the decision tables report them.
-ES_MODELS = ["Mistral-7B", "Qwen3.5-9B", "Qwen3.5-9B-think"]
-EU_MODELS = ["Llama-3.1-8B", "Latxa-8B"]
+ES_MODELS = ["Mistral", "Qwen no-think", "Qwen think"]
+EU_MODELS = ["Llama", "Latxa"]
 
 
 def rows_for(experiments, models, label: str, suffix: str, use_sf: bool):
