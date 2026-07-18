@@ -48,11 +48,6 @@ The thesis manuscript itself (LaTeX source and compiled PDF) is kept outside thi
 - [Spanish dev ablation results](reports/metrics/es_dev_ablation_results.md)
 - [Basque dev ablation results](reports/metrics/eu_dev_ablation_results.md)
 
-## Supervisor meeting materials
-
-- [Meeting 2 notes (2026-06-29)](docs/supervisor_meeting2_notes.md)
-- [Meeting 1 notes (2026-06-15)](docs/supervisor_meeting_notes.md)
-
 ## Quick start
 
 Install the package in editable mode:
@@ -72,7 +67,7 @@ python scripts/prepare_sns1064.py \
   --seed 42
 ```
 
-Import CasiMédicos-Arg from Hugging Face:
+Import CasiMédicos-Exp from Hugging Face:
 
 ```bash
 python scripts/import_casimedicos_arg.py \
@@ -80,7 +75,7 @@ python scripts/import_casimedicos_arg.py \
   --output-dir data/processed/casimedicos
 ```
 
-Create the mixed dataset (SNS-1064 + CasiMédicos-Arg):
+Create the mixed dataset (SNS-1064 + CasiMédicos-Exp):
 
 ```bash
 python scripts/create_amplified_dataset.py \
