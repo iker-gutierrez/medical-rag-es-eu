@@ -1,15 +1,33 @@
 # Medical RAG MA thesis
 
 Retrieval-augmented generation (RAG) pipeline for clinical question answering in Spanish and Basque.
-The system is evaluated on two tasks: open-answer clinical QA (SNS-1064) and multiple-choice medical exam QA (CasiMédicos-Arg).
+The system is evaluated on two tasks: open-answer clinical QA (SNS-1064) and multiple-choice medical exam QA (CasiMédicos-Exp), across five generator configurations (Mistral-7B, Qwen3.5-9B in non-thinking and thinking mode, Llama-3.1-8B-Instruct, and its Basque-adapted counterpart Latxa-8B) and an eleven-condition ablation grid varying retrieval depth, cross-encoder reranking, few-shot prompting, self-feedback, and domain restriction, plus four inference-only reasoning pipelines drawn from recent literature.
 
-## Status (2026-06-29)
+## Status
 
-- **Spanish dev ablations**: complete. Models: Mistral-7B-Instruct, Qwen3.5-9B (with think/no\_think). Datasets: SNS-1064, CasiMédicos-Arg, Mixed.
-- **Basque dev ablations**: complete. Models: Llama-3.1-8B-Instruct, Latxa-Llama-3.1-8B-Instruct. Datasets: SNS-1064 EU, CasiMédicos-Arg EU, Mixed EU.
-- **Qwen3.5-4B vs 9B comparison**: complete on Spanish dev.
-- **Test set evaluation**: pending supervisor approval.
-- **Thesis manuscript**: draft available in Prism (gitignored).
+- **Spanish and Basque dev ablations**: complete, all eleven conditions, three seeds each, decided by MeanQ (mean of ROUGE-L, BERT-F1, MC-accuracy; see `scripts/meanq.py`).
+- **Reasoning-pipeline comparison**: complete for both languages.
+- **Test set evaluation**: not yet run, pending supervisor approval.
+- **Thesis manuscript**: full draft written; not yet finalized (Basque abstract still pending, some sections flagged for supervisor review). Kept outside this repo (see below).
+
+## Key findings
+
+- Retrieval helps every model in both languages substantially; reranking, few-shot prompting, and self-feedback each help only narrowly and inconsistently, and are actively harmful for the weakest models in each language.
+- Of the four reasoning pipelines, only one shows a real gain, and only in Spanish, at several times the inference cost of single-pass retrieval; every pipeline underperforms the single-pass baseline in Basque.
+- A persistent 23-25 point MeanQ gap between the best achievable Spanish and Basque configurations survives every technique tested.
+- Basque language adaptation (Latxa vs. Llama) improves single-pass generation quality but does not extend to self-feedback or multi-step reasoning.
+
+## Best dev configuration per model
+
+| Language | Model | Best config | MeanQ |
+|---|---|---|---|
+| Spanish | Mistral-7B-Instruct | rerank top 5 | 49.15±1.21 |
+| Spanish | Qwen3.5-9B (no-think) | rerank top 5 | 69.79±0.89 |
+| Spanish | Qwen3.5-9B (think) | rerank top 5 | 71.34±0.38 |
+| Basque | Llama-3.1-8B-Instruct | retrieve top 5 | 46.88±0.83 |
+| Basque | Latxa-Llama-3.1-8B | retrieve top 1 | 47.17±2.87 |
+
+Full per-condition results, including cost (seconds/tokens per sample) and self-feedback deltas, are in the ablation reports linked below.
 
 ## Repository layout
 
@@ -17,28 +35,23 @@ The system is evaluated on two tasks: open-answer clinical QA (SNS-1064) and mul
 - `data/interim/`: temporary converted files.
 - `data/processed/`: normalized JSONL/CSV splits (Spanish and Basque).
 - `src/medical_rag_thesis/`: reusable experiment code (retrieval, generation, evaluation).
-- `scripts/`: command-line entry points for data prep and experiments.
-- `slurm/`: Slurm job scripts for the AZTI server.
-- `experiments/runs/`: generated predictions and run artifacts.
+- `scripts/`: command-line entry points for data prep, experiments, and result-table/report generation.
+- `slurm/`: Slurm job scripts.
+- `experiments/runs/`: generated predictions and run artifacts (gitignored).
 - `reports/metrics/`: ablation result tables and summaries.
 - `docs/`: supervisor meeting notes, reading list, bibliography notes.
+
+The thesis manuscript itself (LaTeX source and compiled PDF) is kept outside this repository and is not tracked in git.
+
+## Ablation results
+
+- [Spanish dev ablation results](reports/metrics/es_dev_ablation_results.md)
+- [Basque dev ablation results](reports/metrics/eu_dev_ablation_results.md)
 
 ## Supervisor meeting materials
 
 - [Meeting 2 notes (2026-06-29)](docs/supervisor_meeting2_notes.md)
 - [Meeting 1 notes (2026-06-15)](docs/supervisor_meeting_notes.md)
-- [Spanish dev ablation results](reports/metrics/es_dev_ablation_results.md)
-- [Basque dev ablation results](reports/metrics/eu_dev_ablation_results.md)
-
-
-## Key results
-
-| Task | Best model | Best config | ROUGE-L |
-|------|-----------|-------------|---------|
-| Spanish SNS-1064 | Qwen3.5-9B | 3-shot + rerank5, no\_think, noSF | 38.68 |
-| Spanish CasiMédicos-Arg | Qwen3.5-9B | 3-shot, no RAG, no\_think, SF | 51.55 |
-| Basque SNS-1064 EU | Latxa-Llama-3.1-8B | 3-shot + rerank5, noSF | 35.76 |
-| Basque CasiMédicos-Arg EU | Latxa-Llama-3.1-8B | 3-shot + rerank5, noSF | 28.47 |
 
 ## Quick start
 
@@ -90,7 +103,7 @@ python scripts/build_retrieval_index.py \
 python scripts/run_generation_experiment.py \
   --input data/processed/sns1064/dev.jsonl \
   --output experiments/runs/qwen9b_rerank5_3shot_noSF/predictions.jsonl \
-  --model Qwen/Qwen2.5-7B-Instruct \
+  --model Qwen/Qwen3.5-9B \
   --experiment-name qwen9b_rerank5_3shot_noSF \
   --retrieval-index models/retrieval/sns1064_train_multilingual_e5 \
   --retrieval-top-k 5 \
@@ -109,7 +122,7 @@ python scripts/evaluate_predictions.py \
   --bertscore-lang es
 ```
 
-## Slurm runs (AZTI server)
+## Slurm runs
 
 ```bash
 sbatch slurm/dev_ablation_generation.sh
