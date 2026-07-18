@@ -1,21 +1,24 @@
 #!/usr/bin/env python
 """LaTeX tables for the reasoning pipelines, in the same format as the ablation
 tables (scripts/write_result_tables.py): longtable, a two-level header (Quality
-spanning ROUGE-L/BERT-F1/MC-acc/MeanQ, Cost spanning sec/tok), an SF checkmark
-column, and the best value per metric column in bold.
+spanning ROUGE-L/BERT-F1/MC-acc/MeanQ, Cost spanning sec/tok/calls), and the
+best value per metric column in bold.
 
 Each pipeline is compared against the single-pass RAG baseline it was built on,
 with retrieval held fixed, so any difference is attributable to the reasoning
 procedure rather than to a change in the evidence supplied.
 
-The baseline appears as two rows, noSF and SF, exactly as in the ablation tables:
-the baseline has a self-feedback stage; the reasoning pipelines do not, because
-for them the pipeline *is* the refinement mechanism. Reporting only one of the
-two would flatter or punish the pipelines depending on which was chosen.
+The baseline shows only its better-MeanQ SF state (noSF wins for both languages
+currently), not both, matching the ablation tables' reference-row convention --
+so there is no per-row SF split left to show, and no SF column: the baseline's
+own row label ("Single-pass RAG: <model>, <config>") names the frozen
+configuration directly rather than requiring the caption or a footnote to spell
+it out.
 
-`calls` (mean LLM generations per answer) is not an ablation-table column, so it
-is reported separately as a table note rather than folded into Cost -- the same
-convention reports/metrics/reasoning_pipeline_dev_results.md uses.
+`calls` (mean LLM generations per answer) is always a real column, in both
+languages, not folded into a footnote: a three-round agentic loop and a
+single-pass baseline both emit exactly one final answer, so cost reported
+without it would make them look equally expensive.
 """
 from __future__ import annotations
 
@@ -43,23 +46,23 @@ QUALITY = [
 # uses Latxa + e5 top-1 (Latxa's own ablation winner, corrected after the MC-acc
 # fix -- see reports/metrics/eu_dev_ablation_results.md).
 #
-# The baseline's model + config is named explicitly in the caption (bold) and in
-# a table note below it, rather than inlined into the row label itself -- an
-# inline "Single-pass RAG (baseline: Qwen3.5-9B (no-think), rerank top 5)" label
-# overflowed the page width and clipped the cost columns (calls_column tables
-# especially, ES's rightmost column). The row label stays short and consistent
-# with the other rows' width.
-ES_BASELINE_DESC = "Qwen3.5-9B (no-think), rerank top 5"
+# The baseline's row label names its model + config directly and compactly
+# ("Single-pass RAG: <model>, <config>") rather than the generic "Single-pass
+# RAG (baseline)" -- a longer, more explicit inline label ("...(baseline: Qwen3.5-9B
+# (no-think), rerank top 5)") was tried first and overflowed the page width,
+# clipping the rightmost column; this compact form fits within the same column
+# width the other rows use.
+ES_BASELINE_DESC = "Qwen3.5-9B no-think, rerank top 5"
 EU_BASELINE_DESC = "Latxa-8B, e5 top 1"
 ES_ROWS = [
-    ("Single-pass RAG (baseline)", "1134_qwen35_9b_rag_e5_rerank5_no_think_extractive_mixed_dev", True),
+    (f"Single-pass RAG: {ES_BASELINE_DESC}", "1134_qwen35_9b_rag_e5_rerank5_no_think_extractive_mixed_dev", True),
     ("Structured CoT", "1330_qwen35_9b_structured_cot_e5_rerank5_no_think_extractive_mixed_dev", False),
     ("Thought-driven retrieval", "1331_qwen35_9b_thought_rag_e5_rerank5_no_think_extractive_mixed_dev", False),
     ("Thought-driven, iterative", "1332_qwen35_9b_thought_rag_iter_e5_rerank5_no_think_extractive_mixed_dev", False),
     ("Multi-round agentic (MA-RAG)", "1333_qwen35_9b_marag_e5_rerank5_no_think_extractive_mixed_dev", False),
 ]
 EU_ROWS = [
-    ("Single-pass RAG (baseline)", "1052_latxa_llama31_8b_rag_e5_topk1_extractive_mixed_eu_dev", True),
+    (f"Single-pass RAG: {EU_BASELINE_DESC}", "1052_latxa_llama31_8b_rag_e5_topk1_extractive_mixed_eu_dev", True),
     ("Structured CoT", "1320_latxa_llama31_8b_structured_cot_e5_topk1_extractive_mixed_eu_dev", False),
     ("Thought-driven retrieval", "1321_latxa_llama31_8b_thought_rag_e5_topk1_extractive_mixed_eu_dev", False),
     ("Thought-driven, iterative", "1322_latxa_llama31_8b_thought_rag_iter_e5_topk1_extractive_mixed_eu_dev", False),
@@ -174,7 +177,7 @@ def esc(text: str) -> str:
             .replace("_", r"\_").replace("#", r"\#"))
 
 
-def build(rows, lang: str, suffix: str, dev: str, *, baseline_desc: str, calls_column: bool = False) -> str:
+def build(rows, lang: str, suffix: str, dev: str) -> str:
     # MC-acc (and hence MeanQ) on the mixed table comes from the CasiMedicos
     # subset, matching scripts/meanq.py -- undefined on an open-answer-only suffix.
     mc_suffix = "_casimedicos" if suffix == "" else (suffix if suffix == "_casimedicos" else None)
@@ -203,7 +206,11 @@ def build(rows, lang: str, suffix: str, dev: str, *, baseline_desc: str, calls_c
         if has_sf and len(rows_this_label) == 2:
             # The baseline is the frozen RAG config this whole table holds
             # fixed -- like a carried-forward reference row in the ablation
-            # tables, only its better-MeanQ SF state is shown, not both.
+            # tables, only its better-MeanQ SF state is shown, not both. This
+            # is also why there is no SF column: with every row (baseline
+            # included) collapsed to a single state, and the reasoning
+            # pipelines never having an SF pass at all, the column would be
+            # blank everywhere it isn't simply redundant.
             nosf_mean = rows_this_label[0]["quality"]["meanq"][0]
             sf_mean = rows_this_label[1]["quality"]["meanq"][0]
             keep_sf = sf_mean is not None and (nosf_mean is None or sf_mean > nosf_mean)
@@ -216,19 +223,19 @@ def build(rows, lang: str, suffix: str, dev: str, *, baseline_desc: str, calls_c
         if vals:
             best[m] = max(vals)
 
-    # 3 label columns (#, Pipeline, SF) + quality + cost (sec, tok, and -- for ES,
-    # where the gap between a cheap and an expensive pipeline is the point being
-    # made -- calls).
-    n_cost = 3 if calls_column else 2
-    ncol = 3 + len(QUALITY) + n_cost
-    colspec = r"r l c " + "c " * len(QUALITY) + "c " * n_cost
-    cost_header = "sec & tok" + (" & calls" if calls_column else "")
+    # 2 label columns (#, Pipeline) + quality + cost (sec, tok, calls -- always
+    # shown: a three-round agentic loop and a single-pass baseline both emit
+    # exactly one final answer, so cost without it would make them look equally
+    # expensive and conceal an order-of-magnitude compute difference).
+    n_cost = 3
+    ncol = 2 + len(QUALITY) + n_cost
+    colspec = r"r l " + "c " * len(QUALITY) + "c " * n_cost
     header = (
-        r"\# & Pipeline & SF & \multicolumn{%d}{c}{Quality $\uparrow$} & "
+        r"\# & Pipeline & \multicolumn{%d}{c}{Quality $\uparrow$} & "
         r"\multicolumn{%d}{c}{Cost $\downarrow$} \\" % (len(QUALITY), n_cost)
-        + "\n" + r"\cmidrule(lr){4-%d}\cmidrule(lr){%d-%d}" % (
-            3 + len(QUALITY), 4 + len(QUALITY), ncol)
-        + "\n" + r" &  &  & " + " & ".join(n for _, n in QUALITY) + f" & {cost_header} \\\\"
+        + "\n" + r"\cmidrule(lr){3-%d}\cmidrule(lr){%d-%d}" % (
+            2 + len(QUALITY), 3 + len(QUALITY), ncol)
+        + "\n" + r" &  & " + " & ".join(n for _, n in QUALITY) + r" & sec & tok & calls \\"
     )
     lines = [
         r"\begin{scriptsize}",
@@ -236,9 +243,9 @@ def build(rows, lang: str, suffix: str, dev: str, *, baseline_desc: str, calls_c
         r"\setlength{\LTcapwidth}{\linewidth}",
         r"\begin{longtable}{" + colspec + r"}",
         r"\caption[Reasoning pipelines (%s)]{Reasoning pipelines on the frozen best "
-        r"RAG configuration (%s, %s dev): \textbf{%s}, held fixed so every "
+        r"RAG configuration (%s, %s dev), row 1. Retrieval is held fixed, so every "
         r"difference is attributable to the reasoning procedure. Best value per "
-        r"metric column in bold.} \label{tab:reasoning-%s} \\" % (lang, lang, dev, baseline_desc, lang.lower()),
+        r"metric column in bold.} \label{tab:reasoning-%s} \\" % (lang, lang, dev, lang.lower()),
         r"\toprule",
         header,
         r"\midrule",
@@ -254,14 +261,13 @@ def build(rows, lang: str, suffix: str, dev: str, *, baseline_desc: str, calls_c
         r"\endlastfoot",
     ]
 
-    calls_notes = []
     for i, g in enumerate(gathered, start=1):
         # The baseline is the frozen RAG config every pipeline below it is
         # compared against -- highlighted the same way a carried-forward
         # reference row is in the ablation tables (scripts/write_result_tables.py):
         # a translucent blue row background, with its MeanQ bolded too.
         row_prefix = r"\rowcolor{pinnedrow}" if g["is_baseline"] else ""
-        cells = [str(i), esc(g["label"]), r"\checkmark" if g["sf"] else ""]
+        cells = [str(i), esc(g["label"])]
         for m, _ in QUALITY:
             mean, std = g["quality"][m]
             cell = fmt(mean, std)
@@ -273,12 +279,9 @@ def build(rows, lang: str, suffix: str, dev: str, *, baseline_desc: str, calls_c
         cells += [
             f"{g['sec']:.2f}" if g["sec"] is not None else "---",
             f"{g['tok']:.0f}" if g["tok"] is not None else "---",
+            f"{g['calls']:.1f}" if g["calls"] is not None else "1.0",
         ]
-        if calls_column:
-            cells.append(f"{g['calls']:.1f}" if g["calls"] is not None else "1.0")
         lines.append(row_prefix + " & ".join(cells) + r" \\")
-        if not calls_column and g["calls"] is not None:
-            calls_notes.append(f"{g['label']} {g['calls']:.1f}")
         # Dashed rule after the baseline row, splitting "the frozen config
         # everything else is compared against" from "the pipelines being
         # compared" -- same convention as the ablation tables' reference/
@@ -292,19 +295,12 @@ def build(rows, lang: str, suffix: str, dev: str, *, baseline_desc: str, calls_c
         r"\end{longtable}",
         r"\end{scriptsize}",
     ]
-    note = r"Baseline (row 1): %s." % baseline_desc
-    if calls_notes:
-        note += r" LLM calls per answer: " + "; ".join(calls_notes) + "."
-    lines.append(r"\vspace{-0.5em}")
-    lines.append(r"{\scriptsize\textit{%s}}" % note)
     return "\n".join(lines) + "\n"
 
 
 def main() -> None:
-    (OUT / "table_reasoning_es.tex").write_text(
-        build(ES_ROWS, "ES", "", "mixed", baseline_desc=ES_BASELINE_DESC, calls_column=True))
-    (OUT / "table_reasoning_eu.tex").write_text(
-        build(EU_ROWS, "EU", "", "mixed", baseline_desc=EU_BASELINE_DESC))
+    (OUT / "table_reasoning_es.tex").write_text(build(ES_ROWS, "ES", "", "mixed"))
+    (OUT / "table_reasoning_eu.tex").write_text(build(EU_ROWS, "EU", "", "mixed"))
     print("  wrote table_reasoning_es.tex, table_reasoning_eu.tex")
 
 
