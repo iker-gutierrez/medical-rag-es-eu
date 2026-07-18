@@ -18,7 +18,7 @@ eleven configurations in one table asks the reader to hold eleven rows in mind a
 find the contrasts themselves. Each main-text table instead answers one question,
 carrying forward the winner of the previous stage as its reference row:
 
-    Table 1  baseline        vs  dense retrieval (e5 top-1/3/5)   -> does retrieval help?
+    Table 1  baseline        vs  dense retrieval (retrieve top-1/3/5)   -> does retrieval help?
     Table 2  best dense      vs  reranking (top-1/3/5)            -> does the reranker help?
     Table 3  best reranked   vs  few-shot (alone, and combined)   -> format or knowledge?
     Table 4  best so far     vs  domain-restricted corpora        -> does the corpus matter?
@@ -69,7 +69,7 @@ MEANQ_COMPONENTS = ("rouge_l_f1", "bertscore_f1", "mc_accuracy")
 RAW_QUALITY_FIELDS = ("rouge_l_f1", "bertscore_f1", "mc_accuracy")
 
 # Composite id: <experiment number><model letter>[']. The experiment number
-# (0-10) identifies the row/condition -- baseline is 0, e5 top 1 is 1, ...
+# (0-10) identifies the row/condition -- baseline is 0, retrieve top 1 is 1, ...
 # domain-CasiMedicos is 10 -- assigned once from the canonical EXPERIMENTS list
 # order (ES and EU share the same label text and order, so one map serves both).
 # The model letter (a, b, c, ...) is assigned from that language's own model list
@@ -95,7 +95,7 @@ def experiment_id(label: str, model: str, use_sf: bool) -> str:
 STAGES = [
     ("retrieval", "Effect of dense retrieval",
      "Does retrieval help at all, and how many passages?",
-     ["Baseline LLM only", "e5 top 1", "e5 top 3", "e5 top 5"]),
+     ["Baseline LLM only", "retrieve top 1", "retrieve top 3", "retrieve top 5"]),
     ("rerank", "Effect of cross-encoder reranking",
      "Does reranking a larger candidate pool beat dense retrieval alone?",
      ["rerank top 1", "rerank top 3", "rerank top 5"]),
@@ -130,15 +130,15 @@ DOMAIN_RENAME = {
 #
 # EU (configs/experiments/1049_llama31_8b_rag_sns1064_...,
 # 1060_latxa_..._sns1064_...): Llama's has retrieval_top_k=5 (matches its own
-# pin, e5 top 5 -- rewire_dependent_configs.py's original auto-pick happened to
+# pin, retrieve top 5 -- rewire_dependent_configs.py's original auto-pick happened to
 # already land there, no rerun needed). Latxa's has retrieval_top_k=1 (rewired
 # from the old auto-pick's top_k=3, then re-run 2026-07-17 via
 # scripts/run_latxa_row8_9_10.py -- both rows 9/10 confirmed at
-# retrieval_top_k=1 in predictions.meta.json), matching its pin, e5 top 1.
+# retrieval_top_k=1 in predictions.meta.json), matching its pin, retrieve top 1.
 DOMAIN_BASE_LABEL: dict[str, dict[str, str]] = {
     "ES": {"Mistral": "rerank top 5", "Qwen no-think": "rerank top 5",
            "Qwen think": "rerank top 5"},
-    "EU": {"Llama": "e5 top 5", "Latxa": "e5 top 1"},
+    "EU": {"Llama": "retrieve top 5", "Latxa": "retrieve top 1"},
 }
 
 
@@ -151,7 +151,7 @@ def display_label(label: str, best_config: Optional[str], model: str) -> str:
 
 # Which rows each stage may pick its carried-forward reference from. Cumulative:
 # each stage's pool is every row shown in this or an earlier stage, not just the
-# stage immediately before it -- otherwise a genuinely best config (e.g. e5 top 5,
+# stage immediately before it -- otherwise a genuinely best config (e.g. retrieve top 5,
 # which can beat every reranked row) could win one stage and then be structurally
 # ineligible to be carried into the next, breaking the "reference = best system
 # built so far" property the captions claim. "3-shot, no RAG" is deliberately
@@ -159,10 +159,10 @@ def display_label(label: str, best_config: Optional[str], model: str) -> str:
 # base a domain-\emph{restricted} row is built on (same reasoning as
 # rewire_dependent_configs.py's staged-ablation pool for the same rows).
 STAGE_POOL = {
-    "rerank": ["e5 top 1", "e5 top 3", "e5 top 5"],
-    "fewshot": ["e5 top 1", "e5 top 3", "e5 top 5",
+    "rerank": ["retrieve top 1", "retrieve top 3", "retrieve top 5"],
+    "fewshot": ["retrieve top 1", "retrieve top 3", "retrieve top 5",
                 "rerank top 1", "rerank top 3", "rerank top 5"],
-    "domain": ["e5 top 1", "e5 top 3", "e5 top 5",
+    "domain": ["retrieve top 1", "retrieve top 3", "retrieve top 5",
                "rerank top 1", "rerank top 3", "rerank top 5",
                "3-shot + rerank top 5"],
 }
@@ -173,10 +173,10 @@ STAGE_POOL = {
 # they're a genuine unresolved trade-off, not a per-model split).
 #
 # EU:
-#   Llama-3.1-8B -> e5 top 5 (46.48+/-1.31), beating e5 top 3 (46.04+/-1.18) by a
+#   Llama-3.1-8B -> retrieve top 5 (46.48+/-1.31), beating retrieve top 3 (46.04+/-1.18) by a
 #   real 0.44 points with a comparable (marginally larger) std, and it's cheaper
 #   too -- a clean win, no judgment call.
-#   Latxa-8B -> e5 top 1 (47.17+/-2.87), tied on mean with e5 top 3
+#   Latxa-8B -> retrieve top 1 (47.17+/-2.87), tied on mean with retrieve top 3
 #   (47.64+/-3.59, within a seed's worth of noise) but with the tighter std and
 #   roughly half the cost -- the same EU tie-break resolved earlier this
 #   session; unaffected by the per-model split since it was already model-
@@ -189,7 +189,7 @@ STAGE_POOL = {
 #   its own pin (rerun needed -- see the domain-restriction rerun note).
 #
 # ES: all three models' own best config is already "rerank top 5" (Mistral
-# 49.15+/-1.21 vs 2nd-best e5top1 48.61+/-1.42; Qwen no-think 69.79+/-0.89 vs
+# 49.15+/-1.21 vs 2nd-best retrieve-top1 48.61+/-1.42; Qwen no-think 69.79+/-0.89 vs
 # rerank3 66.93+/-1.18; Qwen think 71.34+/-0.38 vs rerank3 70.41+/-0.61) -- so
 # per-model selection changes nothing structurally for ES; it's the SAME label
 # for all three models. What's still unresolved is Qwen no-think vs think AT
@@ -201,12 +201,12 @@ STAGE_POOL = {
 # BOTH are kept as reference rows so the reader can judge the trade-off
 # directly. Mistral's own pin is single (rerank top 5, no competing candidate).
 FORCED_REFERENCES: dict[str, list[tuple[str, str]]] = {
-    "EU": [("e5 top 5", "Llama"), ("e5 top 1", "Latxa")],
+    "EU": [("retrieve top 5", "Llama"), ("retrieve top 1", "Latxa")],
     "ES": [("rerank top 5", "Mistral"),
            ("rerank top 5", "Qwen no-think"), ("rerank top 5", "Qwen think")],
 }
 # The stage where each language's pinned label(s) are members of that stage's OWN
-# `labels` (EU: "retrieval", where e5 top 1/top 5 are among the four rows; ES:
+# `labels` (EU: "retrieval", where retrieve top 1/top 5 are among the four rows; ES:
 # "rerank", where "rerank top 5" is one of the three rows) -- that stage does NOT
 # get the pin(s) prepended as a carried-forward reference (they're already there,
 # as their own row(s); prepending would duplicate them). Every LATER stage does.
@@ -454,11 +454,11 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
     reader needing to parse the caption."""
     quality = quality or QUALITY
     restrict = restrict or {}
-    # 4 label columns (#, Model, Experiment, SF) + quality + 2 cost columns.
+    # 4 label columns (#, Model, Config, SF) + quality + 2 cost columns.
     ncol = 4 + len(quality) + 2
     colspec = r"r l l c " + "c " * len(quality) + r"c c"
     header = (
-        r"\# & Model & Experiment & SF & \multicolumn{%d}{c}{Quality $\uparrow$} & "
+        r"\# & Model & Config & SF & \multicolumn{%d}{c}{Quality $\uparrow$} & "
         r"\multicolumn{2}{c}{Cost $\downarrow$} \\" % len(quality)
         + "\n" + r"\cmidrule(lr){5-%d}\cmidrule(lr){%d-%d}" % (
             4 + len(quality), 5 + len(quality), ncol)
@@ -665,7 +665,7 @@ def build_language(experiments, models, lang: str, dev_slug: str, suffix: str) -
         # there either. At the pin's own stage, the pinned label(s) are already
         # members of that stage's OWN `labels` -- prepending them there would
         # duplicate the rows (ES: "rerank top 5" is both a pin and one of
-        # "rerank"'s own labels; EU: "e5 top 1"/"e5 top 5" are among
+        # "rerank"'s own labels; EU: "retrieve top 1"/"retrieve top 5" are among
         # "retrieval"'s own labels) -- so no reference is prepended there either,
         # and the stage shows every SF state of its own rows (best_sf_only left
         # empty) so the comparison the pins are drawn from is visible, not

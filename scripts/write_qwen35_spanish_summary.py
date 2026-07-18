@@ -49,13 +49,13 @@ RUNS = [
     },
     {
         "dev_set": "CasiMedicos",
-        "experiment": "e5 top 3",
+        "experiment": "retrieve top 3",
         "reasoning": "no_think",
         "run_id": "100_qwen35_4b_rag_no_think_e5_topk3_extractive_casimedicos_dev",
     },
     {
         "dev_set": "CasiMedicos",
-        "experiment": "e5 top 3",
+        "experiment": "retrieve top 3",
         "reasoning": "think",
         "run_id": "101_qwen35_4b_rag_think_e5_topk3_extractive_casimedicos_dev",
     },

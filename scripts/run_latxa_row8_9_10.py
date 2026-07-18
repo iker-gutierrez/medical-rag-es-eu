@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 """Run Latxa's rows 8 (fewshot), 9 (SNS domain), 10 (CasiMedicos domain) at
-their correct base config -- e5 top 1 -- staged in two waves rather than one
+their correct base config -- retrieve top 1 -- staged in two waves rather than one
 flat batch, so row 8 finishes and evaluates before rows 9/10 start.
 
 This is NOT a "does row 8 win, then wire 9/10 to it" decision the way
 staged_ablation_runner.py's stage B->C wiring is: row 8, 9, and 10 are three
 independent forks off the SAME already-decided base (Latxa's own MeanQ winner,
-e5 top 1 -- see write_result_tables.py's FORCED_REFERENCES comment), not a
+retrieve top 1 -- see write_result_tables.py's FORCED_REFERENCES comment), not a
 chain where a later row's config depends on an earlier row's result. Row 8
 adds few-shot demonstrations; rows 9/10 restrict the retrieval corpus -- mixing
 them (building 9/10 on top of row 8) would confound few-shot with corpus
@@ -55,12 +55,12 @@ def main() -> None:
         print("3 seeds each (42, 43, 44) -> 3 + 6 = 9 inference tasks total, 1 GPU/task, 2 concurrent.")
         return
 
-    print("=== Wave 1: row 8 (fewshot, Latxa e5top1) ===")
+    print("=== Wave 1: row 8 (fewshot, Latxa retrieve-top1) ===")
     job = submit_infer_array(ROW8, "latxa_row8")
     wait_for_job(job)
     evaluate(ROW8, "eu")
 
-    print("\n=== Wave 2: rows 9-10 (domain restriction, Latxa e5top1) ===")
+    print("\n=== Wave 2: rows 9-10 (domain restriction, Latxa retrieve-top1) ===")
     job = submit_infer_array(ROWS_9_10, "latxa_row9_10")
     wait_for_job(job)
     evaluate(ROWS_9_10, "eu")

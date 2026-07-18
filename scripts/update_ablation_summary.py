@@ -60,9 +60,9 @@ MIXED_EXPS = {
 
 CASI_LABELS = {
     0: "Baseline LLM only",
-    1: "e5 top 1 (CasiMedicos index)",
-    2: "e5 top 3 (CasiMedicos index)",
-    3: "e5 top 5 (CasiMedicos index)",
+    1: "retrieve top 1 (CasiMedicos index)",
+    2: "retrieve top 3 (CasiMedicos index)",
+    3: "retrieve top 5 (CasiMedicos index)",
     4: "rerank top 1 (CasiMedicos index)",
     5: "rerank top 3 (CasiMedicos index)",
     6: "rerank top 5 (CasiMedicos index)",
@@ -74,9 +74,9 @@ CASI_LABELS = {
 
 MIXED_LABELS = {
     0: "Baseline LLM only",
-    1: "e5 top 1 (mixed index)",
-    2: "e5 top 3 (mixed index)",
-    3: "e5 top 5 (mixed index)",
+    1: "retrieve top 1 (mixed index)",
+    2: "retrieve top 3 (mixed index)",
+    3: "retrieve top 5 (mixed index)",
     4: "rerank top 1 (mixed index)",
     5: "rerank top 3 (mixed index)",
     6: "rerank top 5 (mixed index)",
@@ -296,8 +296,8 @@ def build_metric_table(result_rows: list[dict]) -> str:
 
 KEY_INSIGHTS = """**Key insights:**
 
-1. **RAG helps on all three dev sets, but the best configuration changes by task.** On SNS1064 dev, the best overall BERTScore is 3-shot + rerank top5 (76.72). On CasiMedicos dev, direct e5 top3 is best (79.41). On the mixed dev set, 3-shot + rerank top5 is best (77.59).
-2. **Reranking is most useful for open-answer and mixed evaluation.** Rerank top5 is best among retrieval-only settings on SNS1064 (76.20) and mixed dev (77.21), while CasiMedicos multiple-choice prefers direct e5 top3 (79.41).
+1. **RAG helps on all three dev sets, but the best configuration changes by task.** On SNS1064 dev, the best overall BERTScore is 3-shot + rerank top5 (76.72). On CasiMedicos dev, direct retrieve top3 is best (79.41). On the mixed dev set, 3-shot + rerank top5 is best (77.59).
+2. **Reranking is most useful for open-answer and mixed evaluation.** Rerank top5 is best among retrieval-only settings on SNS1064 (76.20) and mixed dev (77.21), while CasiMedicos multiple-choice prefers direct retrieve top3 (79.41).
 3. **Few-shot examples help when combined with retrieval, not alone.** 3-shot without RAG is weaker than the best RAG setup on all three dev sets, but 3-shot + rerank top5 gives the best score on SNS1064 and mixed dev.
 4. **Cross-domain retrieval is asymmetric.** CasiMedicos-only retrieval performs poorly on SNS1064 (64.20) and mixed dev (69.31), while SNS-only retrieval is fairly competitive on CasiMedicos dev (75.92) and mixed dev (76.11), probably because the mixed dev set contains many SNS examples.
 5. **Self-feedback is not a reliable quality booster.** Its BERTScore deltas are small and mixed across datasets, so given its computational cost (+1,632 tokens/sample on average) and temporal cost (+3.54 seconds/sample on average), it is not worth it.

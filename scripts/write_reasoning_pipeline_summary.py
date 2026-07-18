@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Summarise the reasoning-pipeline dev runs against the frozen best RAG rows.
 
-Both tables hold retrieval fixed (e5 top-15 -> rerank top-5) and vary only the
+Both tables hold retrieval fixed (retrieve top-15 -> rerank top-5) and vary only the
 reasoning pipeline, so every delta here is attributable to the pipeline. Row 0 of
 each table is the single-pass RAG baseline that won the corresponding dev
 decision table, reproduced from its own metric files -- not re-run.
@@ -44,7 +44,7 @@ ES_ROWS = [
 ]
 
 EU_ROWS = [
-    ("Baseline: single-pass RAG (Latxa, e5 top 1)", "1052_latxa_llama31_8b_rag_e5_topk1_extractive_mixed_eu_dev", True),
+    ("Baseline: single-pass RAG (Latxa, retrieve top 1)", "1052_latxa_llama31_8b_rag_e5_topk1_extractive_mixed_eu_dev", True),
     ("Structured clinical CoT (MedCoT-RAG)", "1320_latxa_llama31_8b_structured_cot_e5_topk1_extractive_mixed_eu_dev", False),
     ("Thought-driven retrieval (RAR2, 1 round)", "1321_latxa_llama31_8b_thought_rag_e5_topk1_extractive_mixed_eu_dev", False),
     ("Thought-driven retrieval (RAR2, iterative)", "1322_latxa_llama31_8b_thought_rag_iter_e5_topk1_extractive_mixed_eu_dev", False),
@@ -286,8 +286,8 @@ def main() -> None:
         "*different* row per language (see below) -- so every difference here is "
         "attributable to the reasoning pipeline, not to retrieval.",
         "",
-        "- **ES**: Qwen3.5-9B (no-think), retrieval e5 top-15 -> rerank top-5, Spanish.",
-        "- **EU**: Latxa-Llama-3.1-8B-Instruct, retrieval **e5 top-1, no reranker**, Basque.",
+        "- **ES**: Qwen3.5-9B (no-think), retrieval retrieve top-15 -> rerank top-5, Spanish.",
+        "- **EU**: Latxa-Llama-3.1-8B-Instruct, retrieval **retrieve top-1, no reranker**, Basque.",
         "",
         "Each language's retrieval is the winning row of its own decision table, ranked by "
         "MeanQ = mean(ROUGE-L, BERT-F1, MC-accuracy). ES uses Qwen3.5-9B no-think rather than "
@@ -295,7 +295,7 @@ def main() -> None:
         "seed-to-seed std), at roughly 3x the tokens and latency per call, and MA-RAG's own "
         "conflict-resolution mechanism is designed to close the same kind of gap think mode "
         "buys through multi-candidate sampling, so the cost was judged not worth it. EU uses "
-        "Latxa (the Basque-adapted model) at e5 top-1, its own ablation winner -- fewer "
+        "Latxa (the Basque-adapted model) at retrieve top-1, its own ablation winner -- fewer "
         "retrieved passages consistently raised MC-accuracy for Basque even though it lowered "
         "ROUGE-L/BERT-F1, the opposite of the pattern in Spanish.",
         "",

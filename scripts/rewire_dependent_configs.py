@@ -5,7 +5,7 @@ The ablation grid has an intended dependency structure that the config files did
 enforce: the few-shot-plus-RAG row is meant to combine few-shot with *the best
 retrieval configuration*, and the two domain-restriction rows are meant to restrict
 the corpus of *the best configuration so far*. Both were hardcoded to rerank-top-5.
-If MeanQ selects a different retrieval setting -- and for Llama it selects e5 top-5,
+If MeanQ selects a different retrieval setting -- and for Llama it selects retrieve top-5,
 not rerank-5 -- those rows are built on the wrong base and the staged comparison is
 invalid.
 
@@ -52,9 +52,9 @@ MODELS = {
         "baseline": ("1260", "mistral7b_no_rag_no_think_extractive_mixed_dev"),
         "lang": "es", "task": "mixed_dev", "tag": "no_think_extractive",
         "retrieval": {
-            "e5 top1": ("1261", "mistral7b_rag_e5_topk1_no_think_extractive_mixed_dev"),
-            "e5 top3": ("1262", "mistral7b_rag_e5_topk3_no_think_extractive_mixed_dev"),
-            "e5 top5": ("1263", "mistral7b_rag_e5_topk5_no_think_extractive_mixed_dev"),
+            "retrieve top1": ("1261", "mistral7b_rag_e5_topk1_no_think_extractive_mixed_dev"),
+            "retrieve top3": ("1262", "mistral7b_rag_e5_topk3_no_think_extractive_mixed_dev"),
+            "retrieve top5": ("1263", "mistral7b_rag_e5_topk5_no_think_extractive_mixed_dev"),
             "rerank1": ("1264", "mistral7b_rag_e5_rerank1_no_think_extractive_mixed_dev"),
             "rerank3": ("1265", "mistral7b_rag_e5_rerank3_no_think_extractive_mixed_dev"),
             "rerank5": ("1266", "mistral7b_rag_e5_rerank5_no_think_extractive_mixed_dev"),
@@ -70,9 +70,9 @@ MODELS = {
         "baseline": ("1128", "qwen35_9b_no_rag_no_think_extractive_mixed_dev"),
         "lang": "es", "task": "mixed_dev", "tag": "no_think_extractive",
         "retrieval": {
-            "e5 top1": ("1129", "qwen35_9b_rag_e5_topk1_no_think_extractive_mixed_dev"),
-            "e5 top3": ("1130", "qwen35_9b_rag_e5_topk3_no_think_extractive_mixed_dev"),
-            "e5 top5": ("1131", "qwen35_9b_rag_e5_topk5_no_think_extractive_mixed_dev"),
+            "retrieve top1": ("1129", "qwen35_9b_rag_e5_topk1_no_think_extractive_mixed_dev"),
+            "retrieve top3": ("1130", "qwen35_9b_rag_e5_topk3_no_think_extractive_mixed_dev"),
+            "retrieve top5": ("1131", "qwen35_9b_rag_e5_topk5_no_think_extractive_mixed_dev"),
             "rerank1": ("1132", "qwen35_9b_rag_e5_rerank1_no_think_extractive_mixed_dev"),
             "rerank3": ("1133", "qwen35_9b_rag_e5_rerank3_no_think_extractive_mixed_dev"),
             "rerank5": ("1134", "qwen35_9b_rag_e5_rerank5_no_think_extractive_mixed_dev"),
@@ -88,9 +88,9 @@ MODELS = {
         "baseline": ("1270", "qwen35_9b_no_rag_think_extractive_mixed_dev"),
         "lang": "es", "task": "mixed_dev", "tag": "think_extractive",
         "retrieval": {
-            "e5 top1": ("1271", "qwen35_9b_rag_e5_topk1_think_extractive_mixed_dev"),
-            "e5 top3": ("1272", "qwen35_9b_rag_e5_topk3_think_extractive_mixed_dev"),
-            "e5 top5": ("1273", "qwen35_9b_rag_e5_topk5_think_extractive_mixed_dev"),
+            "retrieve top1": ("1271", "qwen35_9b_rag_e5_topk1_think_extractive_mixed_dev"),
+            "retrieve top3": ("1272", "qwen35_9b_rag_e5_topk3_think_extractive_mixed_dev"),
+            "retrieve top5": ("1273", "qwen35_9b_rag_e5_topk5_think_extractive_mixed_dev"),
             "rerank1": ("1274", "qwen35_9b_rag_e5_rerank1_think_extractive_mixed_dev"),
             "rerank3": ("1275", "qwen35_9b_rag_e5_rerank3_think_extractive_mixed_dev"),
             "rerank5": ("1276", "qwen35_9b_rag_e5_rerank5_think_extractive_mixed_dev"),
@@ -106,9 +106,9 @@ MODELS = {
         "baseline": ("1040", "llama31_8b_no_rag_extractive_mixed_eu_dev"),
         "lang": "eu", "task": "mixed_eu_dev", "tag": "extractive",
         "retrieval": {
-            "e5 top1": ("1041", "llama31_8b_rag_e5_topk1_extractive_mixed_eu_dev"),
-            "e5 top3": ("1042", "llama31_8b_rag_e5_topk3_extractive_mixed_eu_dev"),
-            "e5 top5": ("1043", "llama31_8b_rag_e5_topk5_extractive_mixed_eu_dev"),
+            "retrieve top1": ("1041", "llama31_8b_rag_e5_topk1_extractive_mixed_eu_dev"),
+            "retrieve top3": ("1042", "llama31_8b_rag_e5_topk3_extractive_mixed_eu_dev"),
+            "retrieve top5": ("1043", "llama31_8b_rag_e5_topk5_extractive_mixed_eu_dev"),
             "rerank1": ("1044", "llama31_8b_rag_e5_rerank1_extractive_mixed_eu_dev"),
             "rerank3": ("1045", "llama31_8b_rag_e5_rerank3_extractive_mixed_eu_dev"),
             "rerank5": ("1046", "llama31_8b_rag_e5_rerank5_extractive_mixed_eu_dev"),
@@ -124,9 +124,9 @@ MODELS = {
         "baseline": ("1051", "latxa_llama31_8b_no_rag_extractive_mixed_eu_dev"),
         "lang": "eu", "task": "mixed_eu_dev", "tag": "extractive",
         "retrieval": {
-            "e5 top1": ("1052", "latxa_llama31_8b_rag_e5_topk1_extractive_mixed_eu_dev"),
-            "e5 top3": ("1053", "latxa_llama31_8b_rag_e5_topk3_extractive_mixed_eu_dev"),
-            "e5 top5": ("1054", "latxa_llama31_8b_rag_e5_topk5_extractive_mixed_eu_dev"),
+            "retrieve top1": ("1052", "latxa_llama31_8b_rag_e5_topk1_extractive_mixed_eu_dev"),
+            "retrieve top3": ("1053", "latxa_llama31_8b_rag_e5_topk3_extractive_mixed_eu_dev"),
+            "retrieve top5": ("1054", "latxa_llama31_8b_rag_e5_topk5_extractive_mixed_eu_dev"),
             "rerank1": ("1055", "latxa_llama31_8b_rag_e5_rerank1_extractive_mixed_eu_dev"),
             "rerank3": ("1056", "latxa_llama31_8b_rag_e5_rerank3_extractive_mixed_eu_dev"),
             "rerank5": ("1057", "latxa_llama31_8b_rag_e5_rerank5_extractive_mixed_eu_dev"),

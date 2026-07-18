@@ -22,7 +22,7 @@ ROWS = [
     (
         "CasiMedicos dev",
         "Baseline LLM only",
-        "Best non-baseline: exp 2 (e5 top3)",
+        "Best non-baseline: exp 2 (retrieve top3)",
         "Agentic: baseline vs exp 2",
         "39_mistral7b_no_rag_no_think_extractive_sf_casimedicos_dev",
         "41_mistral7b_rag_no_think_e5_topk3_extractive_sf_casimedicos_dev",

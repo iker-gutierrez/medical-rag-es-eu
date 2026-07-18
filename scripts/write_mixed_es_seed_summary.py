@@ -39,11 +39,11 @@ EXPERIMENTS = [
     #  qwen_think_run_id_prefix, qwen_think_base)
     ("Baseline LLM only",              "1260", "mistral7b_no_rag_no_think_extractive_mixed_dev",              "1128", "qwen35_9b_no_rag_no_think_extractive_mixed_dev",
      "1270", "qwen35_9b_no_rag_think_extractive_mixed_dev"),
-    ("e5 top 1",                       "1261", "mistral7b_rag_e5_topk1_no_think_extractive_mixed_dev",        "1129", "qwen35_9b_rag_e5_topk1_no_think_extractive_mixed_dev",
+    ("retrieve top 1",                 "1261", "mistral7b_rag_e5_topk1_no_think_extractive_mixed_dev",        "1129", "qwen35_9b_rag_e5_topk1_no_think_extractive_mixed_dev",
      "1271", "qwen35_9b_rag_e5_topk1_think_extractive_mixed_dev"),
-    ("e5 top 3",                       "1262", "mistral7b_rag_e5_topk3_no_think_extractive_mixed_dev",        "1130", "qwen35_9b_rag_e5_topk3_no_think_extractive_mixed_dev",
+    ("retrieve top 3",                 "1262", "mistral7b_rag_e5_topk3_no_think_extractive_mixed_dev",        "1130", "qwen35_9b_rag_e5_topk3_no_think_extractive_mixed_dev",
      "1272", "qwen35_9b_rag_e5_topk3_think_extractive_mixed_dev"),
-    ("e5 top 5",                       "1263", "mistral7b_rag_e5_topk5_no_think_extractive_mixed_dev",        "1131", "qwen35_9b_rag_e5_topk5_no_think_extractive_mixed_dev",
+    ("retrieve top 5",                 "1263", "mistral7b_rag_e5_topk5_no_think_extractive_mixed_dev",        "1131", "qwen35_9b_rag_e5_topk5_no_think_extractive_mixed_dev",
      "1273", "qwen35_9b_rag_e5_topk5_think_extractive_mixed_dev"),
     ("rerank top 1",                   "1264", "mistral7b_rag_e5_rerank1_no_think_extractive_mixed_dev",      "1132", "qwen35_9b_rag_e5_rerank1_no_think_extractive_mixed_dev",
      "1274", "qwen35_9b_rag_e5_rerank1_think_extractive_mixed_dev"),
@@ -69,7 +69,7 @@ ES_MODELS = [
     ("Qwen3.5-9B (think)",    5, 6),
 ]
 # Retrieval sweep rows the base RAG config for row 8 / domain rows is chosen from
-# (indices into EXPERIMENTS): 1 e5 top1, 2 e5 top3, 3 e5 top5, 4 rerank1, 5 rerank3,
+# (indices into EXPERIMENTS): 1 retrieve top1, 2 retrieve top3, 3 retrieve top5, 4 rerank1, 5 rerank3,
 # 6 rerank5. Row 8 cannot wire to itself, so this stays the six-config sweep for
 # that decision -- see rewire_dependent_configs.py.
 RETRIEVAL_IDX = [1, 2, 3, 4, 5, 6]

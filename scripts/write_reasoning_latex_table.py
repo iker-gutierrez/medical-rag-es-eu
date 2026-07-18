@@ -43,7 +43,7 @@ QUALITY = [
 
 # (display label, run stem, has self-feedback). ES uses Qwen3.5-9B no-think +
 # rerank5 (think mode's MeanQ edge was 0.01, inside noise, at ~3x the cost); EU
-# uses Latxa + e5 top-1 (Latxa's own ablation winner, corrected after the MC-acc
+# uses Latxa + retrieve top-1 (Latxa's own ablation winner, corrected after the MC-acc
 # fix -- see reports/metrics/eu_dev_ablation_results.md).
 #
 # The baseline's row label names its model + config directly and compactly
@@ -53,7 +53,7 @@ QUALITY = [
 # clipping the rightmost column; this compact form fits within the same column
 # width the other rows use.
 ES_BASELINE_DESC = "Qwen3.5-9B no-think, rerank top 5"
-EU_BASELINE_DESC = "Latxa, e5 top 1"
+EU_BASELINE_DESC = "Latxa, retrieve top 1"
 ES_ROWS = [
     (f"Single-pass RAG: {ES_BASELINE_DESC}", "1134_qwen35_9b_rag_e5_rerank5_no_think_extractive_mixed_dev", True),
     ("Structured CoT", "1330_qwen35_9b_structured_cot_e5_rerank5_no_think_extractive_mixed_dev", False),

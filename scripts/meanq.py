@@ -172,9 +172,9 @@ def decision_table(candidates: dict[str, tuple[str, str]], *, title: str,
 if __name__ == "__main__":
     # Smoke: print MeanQ for the Llama retrieval configs.
     cand = {
-        "e5 top1": ("1041", "llama31_8b_rag_e5_topk1_extractive_mixed_eu_dev"),
-        "e5 top3": ("1042", "llama31_8b_rag_e5_topk3_extractive_mixed_eu_dev"),
-        "e5 top5": ("1043", "llama31_8b_rag_e5_topk5_extractive_mixed_eu_dev"),
+        "retrieve top1": ("1041", "llama31_8b_rag_e5_topk1_extractive_mixed_eu_dev"),
+        "retrieve top3": ("1042", "llama31_8b_rag_e5_topk3_extractive_mixed_eu_dev"),
+        "retrieve top5": ("1043", "llama31_8b_rag_e5_topk5_extractive_mixed_eu_dev"),
         "rerank1": ("1044", "llama31_8b_rag_e5_rerank1_extractive_mixed_eu_dev"),
         "rerank3": ("1045", "llama31_8b_rag_e5_rerank3_extractive_mixed_eu_dev"),
         "rerank5": ("1046", "llama31_8b_rag_e5_rerank5_extractive_mixed_eu_dev"),

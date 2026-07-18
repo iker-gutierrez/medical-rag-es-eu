@@ -73,9 +73,9 @@ MIXED_EU_EXPS = {
 
 SNS_EU_LABELS = {
     0: "Baseline LLM only",
-    1: "e5 top 1 (SNS EU index)",
-    2: "e5 top 3 (SNS EU index)",
-    3: "e5 top 5 (SNS EU index)",
+    1: "retrieve top 1 (SNS EU index)",
+    2: "retrieve top 3 (SNS EU index)",
+    3: "retrieve top 5 (SNS EU index)",
     4: "rerank top 1 (SNS EU index)",
     5: "rerank top 3 (SNS EU index)",
     6: "rerank top 5 (SNS EU index)",
@@ -87,9 +87,9 @@ SNS_EU_LABELS = {
 
 CASI_EU_LABELS = {
     0: "Baseline LLM only",
-    1: "e5 top 1 (CasiMedicos EU index)",
-    2: "e5 top 3 (CasiMedicos EU index)",
-    3: "e5 top 5 (CasiMedicos EU index)",
+    1: "retrieve top 1 (CasiMedicos EU index)",
+    2: "retrieve top 3 (CasiMedicos EU index)",
+    3: "retrieve top 5 (CasiMedicos EU index)",
     4: "rerank top 1 (CasiMedicos EU index)",
     5: "rerank top 3 (CasiMedicos EU index)",
     6: "rerank top 5 (CasiMedicos EU index)",
@@ -101,9 +101,9 @@ CASI_EU_LABELS = {
 
 MIXED_EU_LABELS = {
     0: "Baseline LLM only",
-    1: "e5 top 1 (mixed EU index)",
-    2: "e5 top 3 (mixed EU index)",
-    3: "e5 top 5 (mixed EU index)",
+    1: "retrieve top 1 (mixed EU index)",
+    2: "retrieve top 3 (mixed EU index)",
+    3: "retrieve top 5 (mixed EU index)",
     4: "rerank top 1 (mixed EU index)",
     5: "rerank top 3 (mixed EU index)",
     6: "rerank top 5 (mixed EU index)",

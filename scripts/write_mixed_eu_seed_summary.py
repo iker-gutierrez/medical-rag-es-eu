@@ -36,9 +36,9 @@ SEEDS = [42, 43, 44]
 EXPERIMENTS = [
     # (label, llama_id_prefix, llama_base, latxa_id_prefix, latxa_base)
     ("Baseline LLM only",              "1040", "llama31_8b_no_rag_extractive_mixed_eu_dev",              "1051", "latxa_llama31_8b_no_rag_extractive_mixed_eu_dev"),
-    ("e5 top 1",                       "1041", "llama31_8b_rag_e5_topk1_extractive_mixed_eu_dev",        "1052", "latxa_llama31_8b_rag_e5_topk1_extractive_mixed_eu_dev"),
-    ("e5 top 3",                       "1042", "llama31_8b_rag_e5_topk3_extractive_mixed_eu_dev",        "1053", "latxa_llama31_8b_rag_e5_topk3_extractive_mixed_eu_dev"),
-    ("e5 top 5",                       "1043", "llama31_8b_rag_e5_topk5_extractive_mixed_eu_dev",        "1054", "latxa_llama31_8b_rag_e5_topk5_extractive_mixed_eu_dev"),
+    ("retrieve top 1",                 "1041", "llama31_8b_rag_e5_topk1_extractive_mixed_eu_dev",        "1052", "latxa_llama31_8b_rag_e5_topk1_extractive_mixed_eu_dev"),
+    ("retrieve top 3",                 "1042", "llama31_8b_rag_e5_topk3_extractive_mixed_eu_dev",        "1053", "latxa_llama31_8b_rag_e5_topk3_extractive_mixed_eu_dev"),
+    ("retrieve top 5",                 "1043", "llama31_8b_rag_e5_topk5_extractive_mixed_eu_dev",        "1054", "latxa_llama31_8b_rag_e5_topk5_extractive_mixed_eu_dev"),
     ("rerank top 1",                   "1044", "llama31_8b_rag_e5_rerank1_extractive_mixed_eu_dev",      "1055", "latxa_llama31_8b_rag_e5_rerank1_extractive_mixed_eu_dev"),
     ("rerank top 3",                   "1045", "llama31_8b_rag_e5_rerank3_extractive_mixed_eu_dev",      "1056", "latxa_llama31_8b_rag_e5_rerank3_extractive_mixed_eu_dev"),
     ("rerank top 5",                   "1046", "llama31_8b_rag_e5_rerank5_extractive_mixed_eu_dev",      "1057", "latxa_llama31_8b_rag_e5_rerank5_extractive_mixed_eu_dev"),
@@ -55,7 +55,7 @@ EU_MODELS = [
     ("Latxa-Llama-3.1-8B-Instruct", 3, 4),
 ]
 # Retrieval sweep rows the base RAG config for row 8 / domain rows is chosen from
-# (indices into EXPERIMENTS): 1 e5 top1, 2 e5 top3, 3 e5 top5, 4 rerank1, 5 rerank3,
+# (indices into EXPERIMENTS): 1 retrieve top1, 2 retrieve top3, 3 retrieve top5, 4 rerank1, 5 rerank3,
 # 6 rerank5. Row 8 cannot wire to itself, so this stays the six-config sweep for
 # that decision -- see rewire_dependent_configs.py.
 RETRIEVAL_IDX = [1, 2, 3, 4, 5, 6]

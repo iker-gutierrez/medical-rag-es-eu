@@ -366,7 +366,7 @@ def build_rows(metrics_dir: Path) -> list[dict[str, Any]]:
             status="done",
             metrics_file="36_mistral7b_rag_no_think_casimedicos_e5_rerank5_extractive_sf_dev.json",
             completed_run="36_mistral7b_rag_no_think_casimedicos_e5_rerank5_extractive_sf_dev",
-            notes="CasiMedicos-only index, e5 top15 + rerank top5, evaluated on SNS dev.",
+            notes="CasiMedicos-only index, retrieve top15 + rerank top5, evaluated on SNS dev.",
             metrics_dir=metrics_dir,
         ),
         make_row(
@@ -375,7 +375,7 @@ def build_rows(metrics_dir: Path) -> list[dict[str, Any]]:
             status="done",
             metrics_file="37_mistral7b_rag_no_think_sns1064_casimedicos_e5_rerank5_extractive_sf_dev.json",
             completed_run="37_mistral7b_rag_no_think_sns1064_casimedicos_e5_rerank5_extractive_sf_dev",
-            notes="SNS+CasiMedicos index, e5 top15 + rerank top5, evaluated on SNS dev.",
+            notes="SNS+CasiMedicos index, retrieve top15 + rerank top5, evaluated on SNS dev.",
             metrics_dir=metrics_dir,
         ),
         make_row(
@@ -384,7 +384,7 @@ def build_rows(metrics_dir: Path) -> list[dict[str, Any]]:
             status="done",
             metrics_file="38_mistral7b_rag_random_3shot_no_think_e5_rerank5_extractive_sf_dev.json",
             completed_run="38_mistral7b_rag_random_3shot_no_think_e5_rerank5_extractive_sf_dev",
-            notes="3 random SNS train examples + SNS e5 top15 + rerank top5.",
+            notes="3 random SNS train examples + SNS retrieve top15 + rerank top5.",
             metrics_dir=metrics_dir,
         ),
     ]

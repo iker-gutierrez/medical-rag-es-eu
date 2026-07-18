@@ -55,9 +55,9 @@ LIMIT = 4  # records per config: enough to exercise both source types
 REAL = {
     "baseline": ("1051", "latxa_llama31_8b_no_rag_extractive_mixed_eu_dev"),
     "retrieval": {
-        "e5 top1": ("1052", "latxa_llama31_8b_rag_e5_topk1_extractive_mixed_eu_dev"),
-        "e5 top3": ("1053", "latxa_llama31_8b_rag_e5_topk3_extractive_mixed_eu_dev"),
-        "e5 top5": ("1054", "latxa_llama31_8b_rag_e5_topk5_extractive_mixed_eu_dev"),
+        "retrieve top1": ("1052", "latxa_llama31_8b_rag_e5_topk1_extractive_mixed_eu_dev"),
+        "retrieve top3": ("1053", "latxa_llama31_8b_rag_e5_topk3_extractive_mixed_eu_dev"),
+        "retrieve top5": ("1054", "latxa_llama31_8b_rag_e5_topk5_extractive_mixed_eu_dev"),
         "rerank1": ("1055", "latxa_llama31_8b_rag_e5_rerank1_extractive_mixed_eu_dev"),
         "rerank3": ("1056", "latxa_llama31_8b_rag_e5_rerank3_extractive_mixed_eu_dev"),
         "rerank5": ("1057", "latxa_llama31_8b_rag_e5_rerank5_extractive_mixed_eu_dev"),

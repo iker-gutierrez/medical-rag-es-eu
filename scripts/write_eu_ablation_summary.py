@@ -57,9 +57,9 @@ MODEL_ORDER = {"Llama-3.1-8B-Instruct": 0, "Latxa-Llama-3.1-8B-Instruct": 1}
 
 EXPERIMENT_LABELS = {
     "no_rag": "Baseline LLM only",
-    "rag_e5_topk1": "e5 top 1",
-    "rag_e5_topk3": "e5 top 3",
-    "rag_e5_topk5": "e5 top 5",
+    "rag_e5_topk1": "retrieve top 1",
+    "rag_e5_topk3": "retrieve top 3",
+    "rag_e5_topk5": "retrieve top 5",
     "rag_e5_rerank1": "rerank top 1",
     "rag_e5_rerank3": "rerank top 3",
     "rag_e5_rerank5": "rerank top 5",
