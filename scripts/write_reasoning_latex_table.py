@@ -42,6 +42,15 @@ QUALITY = [
 # rerank5 (think mode's MeanQ edge was 0.01, inside noise, at ~3x the cost); EU
 # uses Latxa + e5 top-1 (Latxa's own ablation winner, corrected after the MC-acc
 # fix -- see reports/metrics/eu_dev_ablation_results.md).
+#
+# The baseline's model + config is named explicitly in the caption (bold) and in
+# a table note below it, rather than inlined into the row label itself -- an
+# inline "Single-pass RAG (baseline: Qwen3.5-9B (no-think), rerank top 5)" label
+# overflowed the page width and clipped the cost columns (calls_column tables
+# especially, ES's rightmost column). The row label stays short and consistent
+# with the other rows' width.
+ES_BASELINE_DESC = "Qwen3.5-9B (no-think), rerank top 5"
+EU_BASELINE_DESC = "Latxa-8B, e5 top 1"
 ES_ROWS = [
     ("Single-pass RAG (baseline)", "1134_qwen35_9b_rag_e5_rerank5_no_think_extractive_mixed_dev", True),
     ("Structured CoT", "1330_qwen35_9b_structured_cot_e5_rerank5_no_think_extractive_mixed_dev", False),
@@ -165,7 +174,7 @@ def esc(text: str) -> str:
             .replace("_", r"\_").replace("#", r"\#"))
 
 
-def build(rows, lang: str, suffix: str, dev: str, *, calls_column: bool = False) -> str:
+def build(rows, lang: str, suffix: str, dev: str, *, baseline_desc: str, calls_column: bool = False) -> str:
     # MC-acc (and hence MeanQ) on the mixed table comes from the CasiMedicos
     # subset, matching scripts/meanq.py -- undefined on an open-answer-only suffix.
     mc_suffix = "_casimedicos" if suffix == "" else (suffix if suffix == "_casimedicos" else None)
@@ -227,9 +236,9 @@ def build(rows, lang: str, suffix: str, dev: str, *, calls_column: bool = False)
         r"\setlength{\LTcapwidth}{\linewidth}",
         r"\begin{longtable}{" + colspec + r"}",
         r"\caption[Reasoning pipelines (%s)]{Reasoning pipelines on the frozen best "
-        r"RAG configuration (%s, %s dev). Retrieval is held fixed, so every "
+        r"RAG configuration (%s, %s dev): \textbf{%s}, held fixed so every "
         r"difference is attributable to the reasoning procedure. Best value per "
-        r"metric column in bold.} \label{tab:reasoning-%s} \\" % (lang, lang, dev, lang.lower()),
+        r"metric column in bold.} \label{tab:reasoning-%s} \\" % (lang, lang, dev, baseline_desc, lang.lower()),
         r"\toprule",
         header,
         r"\midrule",
@@ -283,15 +292,19 @@ def build(rows, lang: str, suffix: str, dev: str, *, calls_column: bool = False)
         r"\end{longtable}",
         r"\end{scriptsize}",
     ]
+    note = r"Baseline (row 1): %s." % baseline_desc
     if calls_notes:
-        lines.append(r"\vspace{-0.5em}")
-        lines.append(r"{\scriptsize\textit{LLM calls per answer: " + "; ".join(calls_notes) + r".}}")
+        note += r" LLM calls per answer: " + "; ".join(calls_notes) + "."
+    lines.append(r"\vspace{-0.5em}")
+    lines.append(r"{\scriptsize\textit{%s}}" % note)
     return "\n".join(lines) + "\n"
 
 
 def main() -> None:
-    (OUT / "table_reasoning_es.tex").write_text(build(ES_ROWS, "ES", "", "mixed", calls_column=True))
-    (OUT / "table_reasoning_eu.tex").write_text(build(EU_ROWS, "EU", "", "mixed"))
+    (OUT / "table_reasoning_es.tex").write_text(
+        build(ES_ROWS, "ES", "", "mixed", baseline_desc=ES_BASELINE_DESC, calls_column=True))
+    (OUT / "table_reasoning_eu.tex").write_text(
+        build(EU_ROWS, "EU", "", "mixed", baseline_desc=EU_BASELINE_DESC))
     print("  wrote table_reasoning_es.tex, table_reasoning_eu.tex")
 
 
