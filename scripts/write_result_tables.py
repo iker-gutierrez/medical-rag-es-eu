@@ -136,8 +136,8 @@ DOMAIN_RENAME = {
 # scripts/run_latxa_row8_9_10.py -- both rows 9/10 confirmed at
 # retrieval_top_k=1 in predictions.meta.json), matching its pin, e5 top 1.
 DOMAIN_BASE_LABEL: dict[str, dict[str, str]] = {
-    "ES": {"Mistral-7B": "rerank top 5", "Qwen3.5-9B (no-think)": "rerank top 5",
-           "Qwen3.5-9B (think)": "rerank top 5"},
+    "ES": {"Mistral-7B": "rerank top 5", "Qwen3.5-9B": "rerank top 5",
+           "Qwen3.5-9B-think": "rerank top 5"},
     "EU": {"Llama-3.1-8B": "e5 top 5", "Latxa-8B": "e5 top 1"},
 }
 
@@ -203,7 +203,7 @@ STAGE_POOL = {
 FORCED_REFERENCES: dict[str, list[tuple[str, str]]] = {
     "EU": [("e5 top 5", "Llama-3.1-8B"), ("e5 top 1", "Latxa-8B")],
     "ES": [("rerank top 5", "Mistral-7B"),
-           ("rerank top 5", "Qwen3.5-9B (no-think)"), ("rerank top 5", "Qwen3.5-9B (think)")],
+           ("rerank top 5", "Qwen3.5-9B"), ("rerank top 5", "Qwen3.5-9B-think")],
 }
 # The stage where each language's pinned label(s) are members of that stage's OWN
 # `labels` (EU: "retrieval", where e5 top 1/top 5 are among the four rows; ES:
@@ -217,7 +217,7 @@ PIN_OWN_STAGE = {"EU": "retrieval", "ES": "rerank"}
 # ES's Mistral) is a clean single winner with nothing to explain beyond the
 # normal per-metric bolding.
 TIE_BREAK_PAIRS: dict[str, list[tuple[str, str]]] = {
-    "ES": [("rerank top 5", "Qwen3.5-9B (no-think)"), ("rerank top 5", "Qwen3.5-9B (think)")],
+    "ES": [("rerank top 5", "Qwen3.5-9B"), ("rerank top 5", "Qwen3.5-9B-think")],
 }
 TIE_BREAK_STAGE = {"ES": "rerank"}
 
@@ -369,7 +369,7 @@ def collect(prefix: str, base: str, suffix: str, use_sf: bool) -> Optional[dict]
 # ── models per language ───────────────────────────────────────────────────────
 # Each EXPERIMENTS row is (label, id, base, id, base, ...) -- one (id, base) pair
 # per model, in the order the decision tables report them.
-ES_MODELS = ["Mistral-7B", "Qwen3.5-9B (no-think)", "Qwen3.5-9B (think)"]
+ES_MODELS = ["Mistral-7B", "Qwen3.5-9B", "Qwen3.5-9B-think"]
 EU_MODELS = ["Llama-3.1-8B", "Latxa-8B"]
 
 
