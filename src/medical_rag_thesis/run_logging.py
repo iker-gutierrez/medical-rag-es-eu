@@ -27,6 +27,16 @@ class Tee:
     def isatty(self) -> bool:
         return self.console.isatty()
 
+    def fileno(self) -> int:
+        # vLLM's engine-core subprocess (forked, inherits this monkey-patched
+        # sys.stdout) calls sys.stdout.fileno() during distributed-group setup
+        # (vllm.distributed.parallel_state.GroupCoordinator's suppress_stdout).
+        # Without this, that call raises AttributeError and the engine never
+        # starts -- observed deterministically on the Latxa structured_cot
+        # causal-scoring rerun (job 10150, tasks 9-11), all 3 seeds, all 3
+        # pick_free_gpu.sh attempts each. Delegate to the real console fd.
+        return self.console.fileno()
+
     @property
     def encoding(self) -> str:
         return getattr(self.console, "encoding", "utf-8")

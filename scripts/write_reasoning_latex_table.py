@@ -43,8 +43,10 @@ QUALITY = [
 
 # (display label, run stem, has self-feedback). ES uses Qwen3.5-9B no-think +
 # rerank5 (think mode's MeanQ edge was 0.01, inside noise, at ~3x the cost); EU
-# uses Latxa + retrieve top-1 (Latxa's own ablation winner, corrected after the MC-acc
-# fix -- see reports/metrics/eu_dev_ablation_results.md).
+# uses Latxa + retrieve top-3 (Latxa's own ablation winner -- moved from retrieve
+# top-1 once MC-accuracy was correctly included in MeanQ, sec:translation-artefact;
+# both EU models land on retrieve top-3 now, matching Llama's own reasoning-pipeline
+# base which was already on top-3).
 #
 # The baseline's row label names its model + config directly and compactly
 # ("Single-pass RAG: <model>, <config>") rather than the generic "Single-pass
@@ -52,21 +54,29 @@ QUALITY = [
 # (no-think), rerank top 5)") was tried first and overflowed the page width,
 # clipping the rightmost column; this compact form fits within the same column
 # width the other rows use.
-ES_BASELINE_DESC = "Qwen3.5-9B no-think, rerank top 5"
-EU_BASELINE_DESC = "Latxa, retrieve top 1"
+ES_BASELINE_DESC = "Qwen no-think, rerank top 5"
+EU_BASELINE_DESC = "Latxa, retrieve top 3"
 ES_ROWS = [
     (f"Single-pass RAG: {ES_BASELINE_DESC}", "1134_qwen35_9b_rag_e5_rerank5_no_think_extractive_mixed_dev", True),
-    ("Structured CoT", "1330_qwen35_9b_structured_cot_e5_rerank5_no_think_extractive_mixed_dev", False),
+    # Structured CoT is reported in two retrieval variants: with our own frozen
+    # best RAG config (same evidence as the baseline and the other three
+    # pipelines -- isolates the effect of the four-stage causal reasoning
+    # alone), and with MedCoT-RAG's own causal-aware retrieval scoring
+    # (sec:reasoning-pipelines, src/medical_rag_thesis/causal_scoring.py) --
+    # faithful to the full original method, retrieval and generation together.
+    ("Structured CoT, our retrieval", "1330_qwen35_9b_structured_cot_e5_rerank5_no_think_extractive_mixed_dev", False),
+    ("Structured CoT (MedCoT-RAG)", "1341_qwen35_9b_structured_cot_causal_no_think_extractive_mixed_dev", False),
     ("Thought-driven retrieval", "1331_qwen35_9b_thought_rag_e5_rerank5_no_think_extractive_mixed_dev", False),
     ("Thought-driven, iterative", "1332_qwen35_9b_thought_rag_iter_e5_rerank5_no_think_extractive_mixed_dev", False),
     ("Multi-round agentic (MA-RAG)", "1333_qwen35_9b_marag_e5_rerank5_no_think_extractive_mixed_dev", False),
 ]
 EU_ROWS = [
-    (f"Single-pass RAG: {EU_BASELINE_DESC}", "1052_latxa_llama31_8b_rag_e5_topk1_extractive_mixed_eu_dev", True),
-    ("Structured CoT", "1320_latxa_llama31_8b_structured_cot_e5_topk1_extractive_mixed_eu_dev", False),
-    ("Thought-driven retrieval", "1321_latxa_llama31_8b_thought_rag_e5_topk1_extractive_mixed_eu_dev", False),
-    ("Thought-driven, iterative", "1322_latxa_llama31_8b_thought_rag_iter_e5_topk1_extractive_mixed_eu_dev", False),
-    ("Multi-round agentic (MA-RAG)", "1323_latxa_llama31_8b_marag_e5_topk1_extractive_mixed_eu_dev", False),
+    (f"Single-pass RAG: {EU_BASELINE_DESC}", "1053_latxa_llama31_8b_rag_e5_topk3_extractive_mixed_eu_dev", True),
+    ("Structured CoT, our retrieval", "1324_latxa_llama31_8b_structured_cot_e5_topk3_extractive_mixed_eu_dev", False),
+    ("Structured CoT (MedCoT-RAG)", "1343_latxa_llama31_8b_structured_cot_causal_extractive_mixed_eu_dev", False),
+    ("Thought-driven retrieval", "1325_latxa_llama31_8b_thought_rag_e5_topk3_extractive_mixed_eu_dev", False),
+    ("Thought-driven, iterative", "1326_latxa_llama31_8b_thought_rag_iter_e5_topk3_extractive_mixed_eu_dev", False),
+    ("Multi-round agentic (MA-RAG)", "1327_latxa_llama31_8b_marag_e5_topk3_extractive_mixed_eu_dev", False),
 ]
 
 
@@ -177,6 +187,24 @@ def esc(text: str) -> str:
             .replace("_", r"\_").replace("#", r"\#"))
 
 
+# Labels highlighted with the same blue-bar treatment as the baseline row, per
+# language -- for a reason other than "this is the frozen config everything
+# else is compared against" (that's is_baseline). Currently: MedCoT-RAG in
+# Spanish, the one reasoning pipeline that actually beats the single-pass
+# baseline (72.79 vs 69.79 MeanQ) -- worth calling out visually, unlike Basque
+# where every pipeline underperforms it.
+EXTRA_HIGHLIGHT: dict[str, set[str]] = {
+    "ES": {"Structured CoT (MedCoT-RAG)"},
+}
+
+# Languages where the baseline row's blue bar is suppressed even though
+# is_baseline is True -- the row still keeps its dashed-rule separator and
+# bolded MeanQ (it's still the frozen reference the other rows are compared
+# against), just not the highlight, since the highlight in this table is
+# reserved for calling out MedCoT-RAG's win rather than marking the reference.
+SUPPRESS_BASELINE_HIGHLIGHT: set[str] = {"ES"}
+
+
 def build(rows, lang: str, suffix: str, dev: str) -> str:
     # MC-acc (and hence MeanQ) on the mixed table comes from the CasiMedicos
     # subset, matching scripts/meanq.py -- undefined on an open-answer-only suffix.
@@ -245,7 +273,14 @@ def build(rows, lang: str, suffix: str, dev: str) -> str:
         r"\caption[Reasoning pipelines (%s)]{Reasoning pipelines on the frozen best "
         r"RAG configuration (%s, %s dev), row 1. Retrieval is held fixed, so every "
         r"difference is attributable to the reasoning procedure. Best value per "
-        r"metric column in bold.} \label{tab:reasoning-%s} \\" % (lang, lang, dev, lang.lower()),
+        r"metric column in bold.%s} \label{tab:reasoning-%s} \\" % (
+            lang, lang, dev,
+            (r" MC-acc's mean$\pm$std can nominally exceed 100 near the ceiling "
+             r"(row 3: two of three seeds score exactly 100), since the standard "
+             r"deviation is a measure of seed-to-seed spread, not a bound on the "
+             r"metric itself; no individual seed ever exceeds 100."
+             if lang == "ES" else ""),
+            lang.lower()),
         r"\toprule",
         header,
         r"\midrule",
@@ -261,12 +296,15 @@ def build(rows, lang: str, suffix: str, dev: str) -> str:
         r"\endlastfoot",
     ]
 
+    extra_highlight = EXTRA_HIGHLIGHT.get(lang, set())
     for i, g in enumerate(gathered, start=1):
         # The baseline is the frozen RAG config every pipeline below it is
         # compared against -- highlighted the same way a carried-forward
         # reference row is in the ablation tables (scripts/write_result_tables.py):
         # a translucent blue row background, with its MeanQ bolded too.
-        row_prefix = r"\rowcolor{pinnedrow}" if g["is_baseline"] else ""
+        baseline_highlighted = g["is_baseline"] and lang not in SUPPRESS_BASELINE_HIGHLIGHT
+        is_highlighted = baseline_highlighted or g["label"] in extra_highlight
+        row_prefix = r"\rowcolor{pinnedrow}" if is_highlighted else ""
         cells = [str(i), esc(g["label"])]
         for m, _ in QUALITY:
             mean, std = g["quality"][m]

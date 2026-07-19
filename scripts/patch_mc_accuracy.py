@@ -42,14 +42,36 @@ from medical_rag_thesis.evaluation import (  # noqa: E402
     parsed_prediction_sections,
     percent,
 )
-from evaluate_predictions import (  # noqa: E402
-    enrich_records_with_references,
-    read_jsonl,
-    reference_path_from_metadata,
-)
+from evaluate_predictions import read_jsonl  # noqa: E402
 
 METRICS = ROOT / "reports" / "metrics"
 RUNS = ROOT / "experiments" / "runs"
+
+# predictions.meta.json's own `input` field is unreliable for the CasiMedicos
+# join: it points at the mixed dev.jsonl, whose record ids for the CasiMedicos
+# portion (e.g. "casimedicos_274_73") don't match the short ids ("casimedicos_274")
+# that ended up in these predictions files. The candidates below are searched by
+# exact id match instead of trusted-by-convention, so whichever reference file
+# actually agrees with a given run's own id scheme wins. Each candidate uses
+# whichever of correct_option/correct_answer that file happens to name the gold
+# option -- both hold the same kind of value (the gold option number).
+CASIMEDICOS_REFERENCE_CANDIDATES = [
+    ROOT / "data/processed/sns1064_casimedicos/dev_casimedicos_only.jsonl",
+    ROOT / "data/processed/casimedicos_eu/dev.jsonl",
+    ROOT / "data/processed/sns1064_casimedicos_eu_truncated/dev_casimedicos_only.jsonl",
+]
+
+
+def build_casimedicos_reference_index() -> dict[str, dict]:
+    index: dict[str, dict] = {}
+    for path in CASIMEDICOS_REFERENCE_CANDIDATES:
+        if not path.exists():
+            continue
+        for record in read_jsonl(path):
+            rid = record.get("id")
+            if rid and rid not in index:
+                index[rid] = record
+    return index
 
 
 def predictions_path_for(metric_name: str) -> Path | None:
@@ -81,19 +103,27 @@ def mc_for_prediction(records: list[dict], *, initial: bool) -> float | None:
             continue
         sections = parsed_prediction_sections(record, **kwargs)
         prediction = sections.get("short_answer", "")
-        v = mc_accuracy(prediction, options, record.get("correct_option"))
+        v = mc_accuracy(prediction, options, record.get("correct_answer") or record.get("correct_option"))
         if v is not None:
             vals.append(v)
     return percent(statistics.mean(vals)) if vals else None
 
 
-def patch_file(metric_path: Path, *, dry_run: bool) -> str:
+def patch_file(metric_path: Path, *, dry_run: bool, ref_index: dict[str, dict]) -> str:
     preds = predictions_path_for(metric_path.name)
     if preds is None:
         return "NO-PREDICTIONS"
 
-    ref_path = reference_path_from_metadata(preds)
-    records = enrich_records_with_references(read_jsonl(preds), ref_path)
+    records = []
+    for record in read_jsonl(preds):
+        reference = ref_index.get(record.get("id"))
+        item = dict(record)
+        if reference:
+            item.setdefault("options", reference.get("options"))
+            item.setdefault(
+                "correct_option", reference.get("correct_option") or reference.get("correct_answer")
+            )
+        records.append(item)
     # CasiMedicos subset = records that carry options (multiple-choice).
     mc_records = [r for r in records if r.get("options")]
     if not mc_records:
@@ -140,9 +170,11 @@ def main() -> None:
         and '"mc_accuracy"' not in p.read_text()
     ]
     print(f"{len(targets)} metric files need mc_accuracy\n")
+    ref_index = build_casimedicos_reference_index()
+    print(f"  ({len(ref_index)} CasiMedicos reference records indexed by id)\n")
     counts: dict[str, int] = {}
     for p in targets:
-        status = patch_file(p, dry_run=args.dry_run)
+        status = patch_file(p, dry_run=args.dry_run, ref_index=ref_index)
         key = status.split()[0]
         counts[key] = counts.get(key, 0) + 1
         print(f"  {status:40} {p.name}")

@@ -20,6 +20,35 @@ def resolve_dtype(dtype: str) -> Any:
     raise ValueError(f"Unsupported dtype: {dtype}")
 
 
+def load_vllm_model(
+    model_name: str,
+    *,
+    dtype: str = "auto",
+    trust_remote_code: bool = False,
+    max_model_len: int = 16384,
+    gpu_memory_utilization: float = 0.90,
+    tensor_parallel_size: int = 1,
+    reasoning_parser: Optional[str] = None,
+):
+    """vLLM engine loader for the reasoning-pipeline and latency scripts, which
+    need vLLM's batched generate()/SamplingParams interface (n>1 sampling,
+    per-call seeds, repetition detection) rather than the plain transformers
+    forward pass load_generation_model provides."""
+    from vllm import LLM
+
+    kwargs: dict[str, Any] = dict(
+        model=model_name,
+        dtype=dtype,
+        trust_remote_code=trust_remote_code,
+        max_model_len=max_model_len,
+        gpu_memory_utilization=gpu_memory_utilization,
+        tensor_parallel_size=tensor_parallel_size,
+    )
+    if reasoning_parser:
+        kwargs["reasoning_parser"] = reasoning_parser
+    return LLM(**kwargs)
+
+
 def load_generation_model(
     model_name: str,
     *,

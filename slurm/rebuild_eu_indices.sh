@@ -21,11 +21,22 @@ export TOKENIZERS_PARALLELISM=false
 
 echo "EU index rebuild started on $(hostname) at $(date)"
 
-# The retranslation (job 9379) already wrote all six Basque splits and the three
-# combined sets to disk correctly; it only failed at the integrity gate, which now
-# passes (the one genuine under-translation is flagged for manual translation, not a
-# systematic bug). So translation does NOT need re-running -- only the retrieval
-# indices, which are built from the (now corrected) train split.
+# The retranslation (jobs 10193-10195) fixed the translation-truncation
+# artefact for real this time: 0 truncated fields across train/dev/test
+# (was 109, then 14, now 0 -- see scripts/translate_to_basque.py's history
+# for the environment bug, tabular-text bug, and token-budget-gate bug this
+# took to actually close). The retrieval indices are built from train, which
+# is fully clean.
+#
+# The gate below is scoped to train+dev only, deliberately excluding test:
+# casimedicos_eu/test.jsonl legitimately has 8 more records than
+# casimedicos/test.jsonl (their Spanish originals no longer exist anywhere
+# in the current corpus, confirmed by searching casimedicos/all.jsonl too --
+# not translator hallucination, just orphaned from an earlier ES test-split
+# regeneration). Per explicit instruction the fuller 125-record Basque test
+# set is kept rather than cut down to match the smaller 117-record Spanish
+# one, so the id-set-mismatch check on test is expected to keep "failing"
+# and must not block the index rebuild.
 #
 # Index building embeds the whole corpus and is genuinely GPU-bound, unlike the tiny
 # Marian translator. This job requests TWO GPUs (gres=gpu:2) and builds the two
@@ -33,8 +44,8 @@ echo "EU index rebuild started on $(hostname) at $(date)"
 # is not being measured here, so parallelism is free.
 
 echo ""
-echo "=== integrity gate (must pass before rebuilding indices) ==="
-python scripts/check_translation_integrity.py
+echo "=== integrity gate (train+dev only; test's known, accepted id-count difference is excluded) ==="
+python scripts/check_translation_integrity.py --splits train dev
 
 build_index () {
   local gpu="$1" name="$2"

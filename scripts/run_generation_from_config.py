@@ -12,6 +12,25 @@ from typing import Any
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run a generation experiment from a JSON config.")
     parser.add_argument("--config", required=True, help="Experiment config JSON.")
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Override the config's seed (the ablation configs carry no seed field; "
+        "the staged/seeded rerun scripts pass this explicitly per task).",
+    )
+    parser.add_argument(
+        "--output",
+        default=None,
+        help="Override the config's output path (e.g. to redirect to a "
+        "seed-suffixed run directory instead of the config's bare default).",
+    )
+    parser.add_argument(
+        "--backend",
+        default=None,
+        choices=["transformers", "vllm"],
+        help="Override the config's generation backend.",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Forward --dry-run to the generation script.")
     parser.add_argument(
         "--save-prompts",
@@ -32,9 +51,22 @@ def add_bool_arg(command: list[str], config: dict[str, Any], key: str, flag: str
         command.append(flag)
 
 
-def build_command(config_path: Path, dry_run: bool, save_prompts: bool) -> list[str]:
+def build_command(
+    config_path: Path,
+    dry_run: bool,
+    save_prompts: bool,
+    seed: "int | None" = None,
+    output: "str | None" = None,
+    backend: "str | None" = None,
+) -> list[str]:
     root = config_path.resolve().parents[2]
     config = json.loads(config_path.read_text(encoding="utf-8"))
+    if seed is not None:
+        config["seed"] = seed
+    if output is not None:
+        config["output"] = output
+    if backend is not None:
+        config["backend"] = backend
 
     command = [
         sys.executable,
@@ -67,6 +99,10 @@ def build_command(config_path: Path, dry_run: bool, save_prompts: bool) -> list[
         "reranker_top_k": "--reranker-top-k",
         "reranker_device": "--reranker-device",
         "feedback_max_new_tokens": "--feedback-max-new-tokens",
+        "backend": "--backend",
+        "max_model_len": "--max-model-len",
+        "gpu_memory_utilization": "--gpu-memory-utilization",
+        "tensor_parallel_size": "--tensor-parallel-size",
     }
     for key, flag in optional_args.items():
         add_optional_arg(command, config, key, flag)
@@ -85,7 +121,14 @@ def build_command(config_path: Path, dry_run: bool, save_prompts: bool) -> list[
 def main() -> None:
     args = parse_args()
     config_path = Path(args.config)
-    command = build_command(config_path, dry_run=args.dry_run, save_prompts=args.save_prompts)
+    command = build_command(
+        config_path,
+        dry_run=args.dry_run,
+        save_prompts=args.save_prompts,
+        seed=args.seed,
+        output=args.output,
+        backend=args.backend,
+    )
     print(" ".join(command), flush=True)
     subprocess.run(command, check=True)
 

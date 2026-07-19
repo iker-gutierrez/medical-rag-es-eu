@@ -17,6 +17,7 @@ experiments/slurm_logs/*
 models/*
 reports/figures/*
 reports/metrics/*
+reports/metrics_v2/*
 
 # Track processed datasets (exclude smoke test subsets)
 !data/processed/sns1064/

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import pickle
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Sequence, Union
+from typing import Any, Iterable, Mapping, Optional, Sequence, Union
 
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -130,7 +130,7 @@ def build_index(
 
 
 class EmbeddingRetriever:
-    def __init__(self, index_dir: Union[str, Path]):
+    def __init__(self, index_dir: Union[str, Path], device: Optional[str] = None):
         self.index_dir = Path(index_dir)
         config_path = self.index_dir / "config.json"
         self.config = json.loads(config_path.read_text(encoding="utf-8"))
@@ -140,7 +140,7 @@ class EmbeddingRetriever:
             from sentence_transformers import SentenceTransformer
 
             self.embeddings = np.load(self.index_dir / "index.npz")["embeddings"]
-            self.model = SentenceTransformer(self.config["model_name"])
+            self.model = SentenceTransformer(self.config["model_name"], device=device)
             self.vectorizer = None
             self.matrix = None
         elif self.backend == "tfidf":
@@ -153,7 +153,9 @@ class EmbeddingRetriever:
         else:
             raise ValueError(f"Unsupported retrieval backend: {self.backend}")
 
-    def query(self, text: str, top_k: int = 3) -> list[dict[str, Any]]:
+    def query(
+        self, text: str, top_k: int = 3, exclude_id: Optional[str] = None
+    ) -> list[dict[str, Any]]:
         if self.backend == "dense":
             query_prefix = self.config.get("query_prefix", "")
             query_embedding = self.model.encode(
@@ -167,13 +169,23 @@ class EmbeddingRetriever:
         else:
             query_vector = self.vectorizer.transform([text])
             scores = (self.matrix @ query_vector.T).toarray().ravel()
-        top_indices = np.argsort(-scores)[:top_k]
+        # Self-retrieval exclusion (sec:retrieval): dev and train instances can
+        # derive from the same guideline, so a naive top-k search can return the
+        # query's own instance and leak the gold answer. Request one extra
+        # candidate and drop whichever one matches exclude_id, so exactly top_k
+        # genuinely-other passages are always returned.
+        fetch_k = top_k + 1 if exclude_id is not None else top_k
+        top_indices = np.argsort(-scores)[:fetch_k]
         results = []
         for rank, index in enumerate(top_indices, start=1):
             item = dict(self.metadata[int(index)])
+            if exclude_id is not None and str(item.get("doc_id")) == str(exclude_id):
+                continue
             item["score"] = float(scores[int(index)])
-            item["rank"] = rank
+            item["rank"] = len(results) + 1
             results.append(item)
+            if len(results) == top_k:
+                break
         return results
 
 

@@ -3,7 +3,14 @@
 Translate Spanish medical JSONL datasets to Basque using HiTZ/medical_es-eu.
 
 Translates text fields in-place; keeps IDs, splits, and numeric keys unchanged.
-Long texts are split by double-newline to stay within the model's 512-token limit.
+Long texts are split into paragraphs (double-newline); any paragraph still over
+MAX_CHARS is further split on sentence boundaries (see sec:translation-artefact
+in the manuscript). The paragraph-only guard this replaces silently truncated
+any single paragraph without an internal break at MarianMT's 512-token limit --
+confirmed to have lost more than half the content of roughly a fifth of
+long `evidence` fields in the development split. Sentence-splitting closes
+that gap, since a single sentence essentially never exceeds 512 tokens in this
+corpus.
 
 Usage:
   python scripts/translate_to_basque.py \
@@ -14,12 +21,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
 
 TRANSLATABLE_FIELDS = ("topic", "question", "subquestion", "short_answer", "evidence")
 MAX_CHARS = 1800  # rough guard; MarianMT max is ~512 tokens ≈ 2000 chars
+SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
 
 
 def parse_args() -> argparse.Namespace:
@@ -48,23 +57,188 @@ def translate_batch(texts: list[str], tokenizer: Any, model: Any, device: str) -
 
     inputs = tokenizer(texts, return_tensors="pt", padding=True, truncation=True, max_length=512)
     inputs = {k: v.to(device) for k, v in inputs.items()}
+    # A flat max_length=512 lets the model generate arbitrarily long output for
+    # a short input. Observed on isolated short fragments (page headers,
+    # "Recomendaciones 1.", single-clause sentences produced by sentence-level
+    # chunking) with no repetition guard: beam search degenerates into a
+    # repeating-word loop that runs to the full 512-token cap, producing
+    # Basque output 20-30x longer than the source instead of a translation.
+    # A generous but input-relative cap (plus a repetition penalty and
+    # no-repeat n-gram constraint) keeps normal-length translations unaffected
+    # while making runaway generation on short/odd inputs structurally
+    # impossible rather than merely unlikely.
+    input_len = int(inputs["input_ids"].shape[1])
+    gen_max_length = min(512, max(32, input_len * 3))
     with torch.no_grad():
-        outputs = model.generate(**inputs, max_length=512, num_beams=4, early_stopping=True)
+        outputs = model.generate(
+            **inputs,
+            max_length=gen_max_length,
+            num_beams=4,
+            early_stopping=True,
+            repetition_penalty=1.3,
+            no_repeat_ngram_size=4,
+        )
     return [tokenizer.decode(out, skip_special_tokens=True) for out in outputs]
 
 
+def split_into_sentences(paragraph: str) -> list[str]:
+    """Split a single paragraph (no internal double-newline) into sentences,
+    used when the paragraph alone is still over the token budget."""
+    sentences = [s for s in SENTENCE_SPLIT_RE.split(paragraph) if s.strip()]
+    return sentences if sentences else [paragraph]
+
+
+# Tabular / enumerated-list source text (dosage tables, numbered subgroup
+# breakdowns) has few or no sentence-ending periods, so SENTENCE_SPLIT_RE
+# leaves it as one long "sentence" -- observed directly on a real record: a
+# 940-char / 277-token run with 18 colons and 11 periods, well UNDER the
+# 400-token pack budget, so size-based splitting alone never touches it. Fed
+# to the model whole, it degenerated into repeating garbled fragments: the
+# problem is not length, it is that the text has no real prose structure
+# (short colon-delimited "label: value" runs), which the model cannot handle
+# as a single unit regardless of token count. Any sentence with several
+# colons/semicolons -- the structural signature of this failure mode -- is
+# therefore split on them BEFORE the size check, not only as an
+# over-budget fallback; a sentence with too few colons to split usefully
+# falls through to the word-count split as a last resort.
+SECONDARY_SPLIT_RE = re.compile(r"(?<=[:;])\s+")
+TABULAR_COLON_THRESHOLD = 3
+WORD_CHUNK_SIZE = 40
+
+
+def split_oversized_sentence(sentence: str, tokenizer: Any) -> tuple[list[str], bool]:
+    """Returns (pieces, is_tabular). is_tabular is True when the split was
+    triggered by the colon/semicolon heuristic (tabular source text) rather
+    than by the token budget alone -- pack_sentences must NOT recombine
+    those pieces, since re-merging them recreates the exact structureless
+    blob that caused the model to degenerate in the first place."""
+    within_budget = len(tokenizer(sentence, add_special_tokens=False)["input_ids"]) <= SENTENCE_TOKEN_BUDGET
+    looks_tabular = sentence.count(":") + sentence.count(";") >= TABULAR_COLON_THRESHOLD
+    if within_budget and not looks_tabular:
+        return [sentence], False
+    pieces = [p for p in SECONDARY_SPLIT_RE.split(sentence) if p.strip()]
+    if len(pieces) <= 1:
+        if within_budget:
+            return [sentence], False
+        words = sentence.split()
+        pieces = [
+            " ".join(words[i : i + WORD_CHUNK_SIZE])
+            for i in range(0, len(words), WORD_CHUNK_SIZE)
+        ] or [sentence]
+        return pieces, False
+    out: list[str] = []
+    for piece in pieces:
+        if len(tokenizer(piece, add_special_tokens=False)["input_ids"]) > SENTENCE_TOKEN_BUDGET:
+            words = piece.split()
+            out.extend(
+                " ".join(words[i : i + WORD_CHUNK_SIZE])
+                for i in range(0, len(words), WORD_CHUNK_SIZE)
+            )
+        else:
+            out.append(piece)
+    return (out if out else [sentence]), True
+
+
+# Isolated short/fragment sentences (page headers, "Recomendaciones 1.",
+# numbered-list stubs produced by splitting dense clinical prose) starve
+# MarianMT of context: translated alone, beam search on this model reliably
+# degenerates into a repeating-word loop -- observed directly, not a
+# hypothetical: 12 of 21 single-sentence calls on one real record produced
+# incoherent output (ratios of 5-13x the source length) even with a
+# repetition penalty and a length cap. Packing several consecutive sentences
+# into one call restores enough context that this does not happen. The
+# packed group is kept under SENTENCE_TOKEN_BUDGET (measured with the real
+# tokenizer, not a character proxy) so it still fits MarianMT's 512-token
+# limit with margin for the Basque translation, which can run longer than
+# the Spanish source.
+SENTENCE_TOKEN_BUDGET = 400
+
+
+def pack_sentences(sentences: list[str], tokenizer: Any) -> list[str]:
+    """Greedily group consecutive sentences into chunks whose tokenized
+    length stays under SENTENCE_TOKEN_BUDGET. Any sentence that alone
+    exceeds the budget, or looks tabular (few sentence-ending periods, many
+    colons), is split further by split_oversized_sentence before packing.
+    Pieces from a tabular split are kept as their OWN chunk, never merged
+    with neighbours: re-combining colon-delimited "label: value" fragments
+    back into one call recreates the exact structureless blob that made the
+    model degenerate in the first place (observed directly on a real
+    record), even though the merged chunk stays under the token budget."""
+    expanded: list[tuple[str, bool]] = []
+    for sentence in sentences:
+        pieces, is_tabular = split_oversized_sentence(sentence, tokenizer)
+        expanded.extend((piece, is_tabular) for piece in pieces)
+
+    groups: list[str] = []
+    current: list[str] = []
+    current_tokens = 0
+    for sentence, is_tabular in expanded:
+        if is_tabular:
+            if current:
+                groups.append(" ".join(current))
+                current, current_tokens = [], 0
+            groups.append(sentence)
+            continue
+        sentence_tokens = len(tokenizer(sentence, add_special_tokens=False)["input_ids"])
+        if current and current_tokens + sentence_tokens > SENTENCE_TOKEN_BUDGET:
+            groups.append(" ".join(current))
+            current, current_tokens = [], 0
+        current.append(sentence)
+        current_tokens += sentence_tokens
+    if current:
+        groups.append(" ".join(current))
+    return groups
+
+
+def fits_token_budget(text: str, tokenizer: Any) -> bool:
+    """The real constraint is MarianMT's 512-token input limit, not
+    characters. MAX_CHARS is a cheap pre-filter (most text is prose, where
+    char count is a fine proxy), but number/citation-dense clinical text can
+    have a much lower chars-per-token ratio -- observed directly: a
+    1,723-char record (under MAX_CHARS=1800) tokenized to 554 tokens (over
+    512) and, translated whole on the strength of the char check alone, was
+    silently truncated after its first two sentences with the rest of the
+    paragraph -- an entire dosage-comparison table -- dropped with no error.
+    Any text passed here is therefore re-checked with the actual tokenizer
+    before being trusted as a single call."""
+    return len(tokenizer(text, add_special_tokens=False)["input_ids"]) <= SENTENCE_TOKEN_BUDGET
+
+
 def translate_text(text: str, tokenizer: Any, model: Any, device: str) -> str:
-    """Translate a single text, chunking by paragraph if needed."""
+    """Translate a single text, chunking by paragraph, then packing sentences
+    for any paragraph still over the token budget after that split."""
     if not text or not text.strip():
         return text
-    if len(text) <= MAX_CHARS:
+    if len(text) <= MAX_CHARS and fits_token_budget(text, tokenizer):
         return translate_batch([text], tokenizer, model, device)[0]
-    # chunk by double-newline (paragraph break)
-    chunks = [c for c in text.split("\n\n") if c.strip()]
-    if not chunks:
+    # chunk by double-newline (paragraph break); further split any paragraph
+    # still over the token budget into token-budgeted sentence groups, so no
+    # chunk handed to MarianMT can silently exceed its 512-token limit or be
+    # so short/decontextualized that generation degenerates.
+    paragraphs = [c for c in text.split("\n\n") if c.strip()]
+    if not paragraphs:
         return text
-    translated_chunks = translate_batch(chunks, tokenizer, model, device)
-    return "\n\n".join(translated_chunks)
+    pieces: list[str] = []
+    piece_is_paragraph_end: list[bool] = []
+    for paragraph in paragraphs:
+        if len(paragraph) <= MAX_CHARS and fits_token_budget(paragraph, tokenizer):
+            pieces.append(paragraph)
+            piece_is_paragraph_end.append(True)
+        else:
+            groups = pack_sentences(split_into_sentences(paragraph), tokenizer)
+            for j, group in enumerate(groups):
+                pieces.append(group)
+                piece_is_paragraph_end.append(j == len(groups) - 1)
+    translated_pieces = translate_batch(pieces, tokenizer, model, device)
+    # Re-assemble: a paragraph boundary gets "\n\n", a group boundary within
+    # a re-split paragraph gets a single space.
+    out_parts: list[str] = []
+    for i, (piece, is_end) in enumerate(zip(translated_pieces, piece_is_paragraph_end)):
+        out_parts.append(piece)
+        if i == len(translated_pieces) - 1:
+            continue
+        out_parts.append("\n\n" if is_end else " ")
+    return "".join(out_parts)
 
 
 def collect_texts(records: list[dict[str, Any]]) -> tuple[list[str], list[tuple[int, str]]]:
@@ -102,7 +276,7 @@ def run_translation(
         translated: list[str] = []
         short, short_idx = [], []
         for j, t in enumerate(batch):
-            if len(t) <= MAX_CHARS:
+            if len(t) <= MAX_CHARS and fits_token_budget(t, tokenizer):
                 short.append(t)
                 short_idx.append(j)
             else:

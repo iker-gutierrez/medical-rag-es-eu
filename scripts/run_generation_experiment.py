@@ -7,7 +7,7 @@ import random
 import sys
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -16,6 +16,7 @@ from medical_rag_thesis.data_io import read_jsonl, write_jsonl  # noqa: E402
 from medical_rag_thesis.generation import (  # noqa: E402
     generate_one,
     load_generation_model,
+    load_vllm_model,
     make_prompt,
     make_self_feedback_prompt,
 )
@@ -70,6 +71,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--reranker-top-k", type=int, default=0, help="Keep this many documents after reranking.")
     parser.add_argument("--reranker-device", default="cpu", help="Device for the CrossEncoder reranker.")
     parser.add_argument("--language", default="es", choices=["es", "eu"], help="Prompt language (es=Spanish, eu=Basque).")
+    parser.add_argument(
+        "--backend",
+        default="transformers",
+        choices=["transformers", "vllm"],
+        help="Generation engine. vLLM batches every record's prompt into one "
+        "engine call per pass (initial, then feedback) instead of the "
+        "transformers backend's one-call-per-record loop.",
+    )
+    parser.add_argument("--max-model-len", type=int, default=16384, help="vLLM backend only.")
+    parser.add_argument("--gpu-memory-utilization", type=float, default=0.90, help="vLLM backend only.")
+    parser.add_argument("--tensor-parallel-size", type=int, default=1, help="vLLM backend only.")
     return parser.parse_args()
 
 
@@ -171,22 +183,40 @@ def run(args: argparse.Namespace) -> None:
     if args.reranker_model and not args.dry_run:
         reranker = load_reranker(args.reranker_model, args.reranker_device)
 
-    tokenizer = model = None
+    tokenizer = model = llm = None
     model_load_seconds = 0.0
+    use_vllm = args.backend == "vllm" and not args.dry_run
     if not args.dry_run:
+        from transformers import AutoTokenizer
+
         model_load_started = time.perf_counter()
-        tokenizer, model = load_generation_model(
-            args.model,
-            device_map=args.device_map,
-            dtype=args.dtype,
-            trust_remote_code=args.trust_remote_code,
-        )
+        if use_vllm:
+            tokenizer = AutoTokenizer.from_pretrained(args.model, trust_remote_code=args.trust_remote_code)
+            if tokenizer.pad_token_id is None:
+                tokenizer.pad_token = tokenizer.eos_token
+            llm = load_vllm_model(
+                args.model,
+                dtype=args.dtype,
+                trust_remote_code=args.trust_remote_code,
+                max_model_len=args.max_model_len,
+                gpu_memory_utilization=args.gpu_memory_utilization,
+                tensor_parallel_size=args.tensor_parallel_size,
+            )
+        else:
+            tokenizer, model = load_generation_model(
+                args.model,
+                device_map=args.device_map,
+                dtype=args.dtype,
+                trust_remote_code=args.trust_remote_code,
+            )
         model_load_seconds = time.perf_counter() - model_load_started
     native_thinking = uses_native_qwen_thinking(args.model)
 
-    outputs = []
+    # Pass 1: retrieval, few-shot selection, and prompt construction for every
+    # record. This is unchanged regardless of backend -- vLLM only changes how
+    # the *generation* calls below are batched, not how prompts are built.
+    prepared: list[dict[str, Any]] = []
     for ordinal, record in enumerate(records, start=1):
-        example_started = time.perf_counter()
         retrieval_query = query_text(record, language=args.language)
         retrieval_docs: list[dict[str, Any]] = []
         retrieval_candidate_ids: list[str] = []
@@ -210,7 +240,6 @@ def run(args: argparse.Namespace) -> None:
                     retrieval_docs = retrieval_docs[: args.reranker_top_k]
                 rerank_seconds = time.perf_counter() - rerank_started
 
-        few_shot_seconds = 0.0
         few_shot_started = time.perf_counter()
         if args.few_shot_k > 0 and args.few_shot_mode == "retrieval":
             if not retriever:
@@ -224,22 +253,8 @@ def run(args: argparse.Namespace) -> None:
         prompt_started = time.perf_counter()
         if args.dry_run:
             prompt = dry_prompt(record, examples, retrieval_docs, no_think, args.prompt_style, args.language)
-            initial_prediction = ""
-            prediction = ""
-            feedback_prompt = (
-                dry_self_feedback_prompt(record, retrieval_docs, initial_prediction, args.prompt_style, args.language)
-                if args.self_feedback
-                else None
-            )
-            prompt_seconds = time.perf_counter() - prompt_started
-            generation_seconds = 0.0
-            feedback_generation_seconds = 0.0
-            input_tokens = None
-            feedback_input_tokens = None
-            output_tokens = None
-            initial_output_tokens = None
         else:
-            assert tokenizer is not None and model is not None
+            assert tokenizer is not None
             prompt = make_prompt(
                 tokenizer,
                 record,
@@ -250,49 +265,153 @@ def run(args: argparse.Namespace) -> None:
                 language=args.language,
                 enable_thinking=args.think if native_thinking else None,
             )
-            prompt_seconds = time.perf_counter() - prompt_started
-            input_tokens = len(tokenizer(prompt)["input_ids"])
+        prompt_seconds = time.perf_counter() - prompt_started
+        input_tokens = len(tokenizer(prompt)["input_ids"]) if tokenizer is not None else None
+
+        prepared.append({
+            "ordinal": ordinal,
+            "record": record,
+            "examples": examples,
+            "retrieval_docs": retrieval_docs,
+            "retrieval_candidate_ids": retrieval_candidate_ids,
+            "prompt": prompt,
+            "timing": {
+                "retrieval_seconds": retrieval_seconds,
+                "rerank_seconds": rerank_seconds,
+                "few_shot_seconds": few_shot_seconds,
+                "prompt_seconds": prompt_seconds,
+            },
+            "input_tokens": input_tokens,
+        })
+
+    # Pass 2: generation. dry-run writes empty predictions; vLLM batches every
+    # record's prompt into one engine call per pass; transformers stays a
+    # sequential one-call-per-record loop (generate_one), as before.
+    if args.dry_run:
+        initial_predictions = [""] * len(prepared)
+        for item in prepared:
+            item["timing"]["generation_seconds"] = 0.0
+    elif use_vllm:
+        assert llm is not None
+        from vllm import SamplingParams
+
+        sp = SamplingParams(
+            max_tokens=args.max_new_tokens,
+            temperature=args.temperature,
+            top_p=args.top_p,
+            seed=args.seed,
+        )
+        gen_started = time.perf_counter()
+        vllm_outputs = llm.generate([item["prompt"] for item in prepared], sp)
+        # vLLM batches the whole pass into one engine call, so there is no true
+        # per-record wall time; the batch's total is divided evenly across its
+        # records to keep mean_generation_seconds comparable to the
+        # transformers backend's per-record timing.
+        per_record_seconds = (time.perf_counter() - gen_started) / len(prepared) if prepared else 0.0
+        initial_predictions = [output.outputs[0].text.strip() for output in vllm_outputs]
+        for item in prepared:
+            item["timing"]["generation_seconds"] = per_record_seconds
+    else:
+        assert tokenizer is not None and model is not None
+        initial_predictions = []
+        for item in prepared:
             generation_started = time.perf_counter()
-            initial_prediction = generate_one(
-                tokenizer,
-                model,
-                prompt,
-                max_new_tokens=args.max_new_tokens,
-                temperature=args.temperature,
-                top_p=args.top_p,
-                enable_thinking=args.think if native_thinking else None,
-            )
-            generation_seconds = time.perf_counter() - generation_started
-            prediction = initial_prediction
-            feedback_prompt = None
-            feedback_generation_seconds = 0.0
-            feedback_input_tokens = None
-            initial_output_tokens = len(tokenizer(initial_prediction)["input_ids"]) if initial_prediction else 0
-            if args.self_feedback:
-                feedback_prompt = make_self_feedback_prompt(
-                    tokenizer,
-                    record,
-                    answer=initial_prediction,
-                    documents=retrieval_docs,
-                    prompt_style=args.prompt_style,
-                    language=args.language,
-                    enable_thinking=args.think if native_thinking else None,
-                )
-                feedback_input_tokens = len(tokenizer(feedback_prompt)["input_ids"])
-                feedback_started = time.perf_counter()
-                prediction = generate_one(
+            initial_predictions.append(
+                generate_one(
                     tokenizer,
                     model,
-                    feedback_prompt,
-                    max_new_tokens=args.feedback_max_new_tokens or args.max_new_tokens,
+                    item["prompt"],
+                    max_new_tokens=args.max_new_tokens,
                     temperature=args.temperature,
                     top_p=args.top_p,
                     enable_thinking=args.think if native_thinking else None,
                 )
-                feedback_generation_seconds = time.perf_counter() - feedback_started
-            output_tokens = len(tokenizer(prediction)["input_ids"]) if prediction else 0
+            )
+            item["timing"]["generation_seconds"] = time.perf_counter() - generation_started
 
-        example_seconds = time.perf_counter() - example_started
+    # Pass 3: self-feedback, built from each record's own initial prediction.
+    feedback_prompts: list[Optional[str]] = [None] * len(prepared)
+    if args.self_feedback:
+        for item, initial_prediction in zip(prepared, initial_predictions):
+            record = item["record"]
+            if args.dry_run:
+                feedback_prompts[item["ordinal"] - 1] = dry_self_feedback_prompt(
+                    record, item["retrieval_docs"], initial_prediction, args.prompt_style, args.language
+                )
+            else:
+                assert tokenizer is not None
+                feedback_prompts[item["ordinal"] - 1] = make_self_feedback_prompt(
+                    tokenizer,
+                    record,
+                    answer=initial_prediction,
+                    documents=item["retrieval_docs"],
+                    prompt_style=args.prompt_style,
+                    language=args.language,
+                    enable_thinking=args.think if native_thinking else None,
+                )
+
+        if args.dry_run:
+            predictions = list(initial_predictions)
+            for item in prepared:
+                item["timing"]["feedback_generation_seconds"] = 0.0
+        elif use_vllm:
+            assert llm is not None
+            from vllm import SamplingParams
+
+            fb_sp = SamplingParams(
+                max_tokens=args.feedback_max_new_tokens or args.max_new_tokens,
+                temperature=args.temperature,
+                top_p=args.top_p,
+                seed=args.seed + 1,
+            )
+            fb_started = time.perf_counter()
+            fb_outputs = llm.generate(feedback_prompts, fb_sp)
+            fb_seconds = (time.perf_counter() - fb_started) / len(prepared) if prepared else 0.0
+            predictions = [output.outputs[0].text.strip() for output in fb_outputs]
+            for item in prepared:
+                item["timing"]["feedback_generation_seconds"] = fb_seconds
+        else:
+            assert tokenizer is not None and model is not None
+            predictions = []
+            for item, feedback_prompt in zip(prepared, feedback_prompts):
+                feedback_started = time.perf_counter()
+                predictions.append(
+                    generate_one(
+                        tokenizer,
+                        model,
+                        feedback_prompt,
+                        max_new_tokens=args.feedback_max_new_tokens or args.max_new_tokens,
+                        temperature=args.temperature,
+                        top_p=args.top_p,
+                        enable_thinking=args.think if native_thinking else None,
+                    )
+                )
+                item["timing"]["feedback_generation_seconds"] = time.perf_counter() - feedback_started
+    else:
+        predictions = list(initial_predictions)
+        for item in prepared:
+            item["timing"]["feedback_generation_seconds"] = 0.0
+
+    outputs = []
+    for item, initial_prediction, prediction, feedback_prompt in zip(
+        prepared, initial_predictions, predictions, feedback_prompts
+    ):
+        record = item["record"]
+        examples = item["examples"]
+        retrieval_docs = item["retrieval_docs"]
+        timing = item["timing"]
+        # For vLLM, generation/feedback seconds are the batch's wall time divided
+        # evenly across its records (there is no true per-record time inside a
+        # batched call), so example_seconds here is likewise a components sum
+        # rather than a single wall-clock bracket, for every backend uniformly.
+        example_seconds = (
+            timing["retrieval_seconds"] + timing["rerank_seconds"] + timing["few_shot_seconds"]
+            + timing["prompt_seconds"] + timing["generation_seconds"] + timing["feedback_generation_seconds"]
+        )
+        feedback_input_tokens = len(tokenizer(feedback_prompt)["input_ids"]) if (feedback_prompt and tokenizer is not None) else None
+        initial_output_tokens = len(tokenizer(initial_prediction)["input_ids"]) if (initial_prediction and tokenizer is not None) else (0 if not args.dry_run else None)
+        output_tokens = len(tokenizer(prediction)["input_ids"]) if (prediction and tokenizer is not None) else (0 if not args.dry_run else None)
+
         output = {
             "id": record.get("id"),
             "experiment_name": args.experiment_name,
@@ -313,29 +432,29 @@ def run(args: argparse.Namespace) -> None:
             "parsed_prediction": parse_answer_sections(prediction) if prediction else {},
             "few_shot_ids": [example.get("doc_id") or example.get("id") for example in examples],
             "retrieval_docs": retrieval_docs,
-            "retrieval_candidate_ids": retrieval_candidate_ids,
+            "retrieval_candidate_ids": item["retrieval_candidate_ids"],
             "timing": {
-                "retrieval_seconds": retrieval_seconds,
-                "rerank_seconds": rerank_seconds,
-                "few_shot_seconds": few_shot_seconds,
-                "prompt_seconds": prompt_seconds,
-                "generation_seconds": generation_seconds,
-                "feedback_generation_seconds": feedback_generation_seconds,
+                "retrieval_seconds": timing["retrieval_seconds"],
+                "rerank_seconds": timing["rerank_seconds"],
+                "few_shot_seconds": timing["few_shot_seconds"],
+                "prompt_seconds": timing["prompt_seconds"],
+                "generation_seconds": timing["generation_seconds"],
+                "feedback_generation_seconds": timing["feedback_generation_seconds"],
                 "example_seconds": example_seconds,
             },
             "token_counts": {
-                "input_tokens": input_tokens,
+                "input_tokens": item["input_tokens"],
                 "feedback_input_tokens": feedback_input_tokens,
                 "initial_output_tokens": initial_output_tokens,
                 "output_tokens": output_tokens,
             },
         }
         if args.save_prompts or args.dry_run:
-            output["prompt"] = prompt
+            output["prompt"] = item["prompt"]
             if feedback_prompt is not None:
                 output["feedback_prompt"] = feedback_prompt
         outputs.append(output)
-        print(f"[{ordinal}/{len(records)}] {record.get('id', '')}", flush=True)
+        print(f"[{item['ordinal']}/{len(records)}] {record.get('id', '')}", flush=True)
 
     write_jsonl(outputs, args.output)
     metadata_path = Path(args.output).with_suffix(".meta.json")

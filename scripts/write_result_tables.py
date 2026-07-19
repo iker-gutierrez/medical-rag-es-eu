@@ -129,16 +129,15 @@ DOMAIN_RENAME = {
 # needed.
 #
 # EU (configs/experiments/1049_llama31_8b_rag_sns1064_...,
-# 1060_latxa_..._sns1064_...): Llama's has retrieval_top_k=5 (matches its own
-# pin, retrieve top 5 -- rewire_dependent_configs.py's original auto-pick happened to
-# already land there, no rerun needed). Latxa's has retrieval_top_k=1 (rewired
-# from the old auto-pick's top_k=3, then re-run 2026-07-17 via
-# scripts/run_latxa_row8_9_10.py -- both rows 9/10 confirmed at
-# retrieval_top_k=1 in predictions.meta.json), matching its pin, retrieve top 1.
+# 1060_latxa_..._sns1064_...): rerun against the corrected corpus with
+# MC-accuracy correctly included in MeanQ (sec:translation-artefact), both
+# models' stage-A/B winner moved to retrieve top3 -- staged_ablation_runner.py's
+# run_model() rewired rows 9-10 to retrieval_top_k=3 accordingly before this
+# rerun (confirmed directly in both configs' JSON, no reranking either).
 DOMAIN_BASE_LABEL: dict[str, dict[str, str]] = {
     "ES": {"Mistral": "rerank top 5", "Qwen no-think": "rerank top 5",
            "Qwen think": "rerank top 5"},
-    "EU": {"Llama": "retrieve top 5", "Latxa": "retrieve top 1"},
+    "EU": {"Llama": "retrieve top 3", "Latxa": "retrieve top 3"},
 }
 
 
@@ -146,6 +145,15 @@ def display_label(label: str, best_config: Optional[str], model: str) -> str:
     if label in DOMAIN_RENAME:
         config_text = best_config.get(model) if isinstance(best_config, dict) else best_config
         return f"{DOMAIN_RENAME[label]}, {config_text}" if config_text else DOMAIN_RENAME[label]
+    if label == "3-shot + rerank top 5":
+        # This row's RAG base isn't fixed at "rerank top 5" -- it's rewired to
+        # whichever config wins stage A's MeanQ (see run_model()'s apply_base
+        # call), so the static label goes stale whenever that winner changes
+        # (as it did: rerank5 -> retrieve top3 once MC-acc was correctly
+        # included). Substitute the actual pinned config so the table never
+        # names a RAG setting the row wasn't actually run with.
+        config_text = best_config.get(model) if isinstance(best_config, dict) else best_config
+        return f"3-shot + {config_text}" if config_text else label
     return label
 
 
@@ -172,21 +180,24 @@ STAGE_POOL = {
 # model, except ES's Qwen no-think/think tie (see below, still two pins because
 # they're a genuine unresolved trade-off, not a per-model split).
 #
-# EU:
-#   Llama-3.1-8B -> retrieve top 5 (46.48+/-1.31), beating retrieve top 3 (46.04+/-1.18) by a
-#   real 0.44 points with a comparable (marginally larger) std, and it's cheaper
-#   too -- a clean win, no judgment call.
-#   Latxa-8B -> retrieve top 1 (47.17+/-2.87), tied on mean with retrieve top 3
-#   (47.64+/-3.59, within a seed's worth of noise) but with the tighter std and
-#   roughly half the cost -- the same EU tie-break resolved earlier this
-#   session; unaffected by the per-model split since it was already model-
-#   specific (Latxa's own comparison, never Llama's).
-#   Because the two models now carry different retrieval depths, the fewshot/
-#   domain rows are no longer built on one shared config: Llama's (ids
-#   1048/1049/1050) already happened to be at top_k=5 (rewire_dependent_
-#   configs.py's original auto-pick, before any override existed -- no rerun
-#   needed); Latxa's (ids 1059/1060/1061) have been rewired to top_k=1 to match
-#   its own pin (rerun needed -- see the domain-restriction rerun note).
+# EU (rerun against the corrected translation corpus, sec:translation-artefact,
+# with MC-accuracy correctly included in MeanQ via patch_mc_accuracy.py -- an
+# earlier pass without MC-acc had picked rerank5 for both models; MC-acc
+# swings the choice to retrieve top3 for both):
+#   Llama-3.1-8B -> retrieve top 3 (49.93+/-1.59), the highest MeanQ of the six
+#   stage-A configs (next: retrieve top 5 at 49.85+/-1.75, rerank5 at
+#   49.62+/-1.75 -- within a fraction of a point, but top3 both wins and is
+#   the cheaper retrieval depth of the two).
+#   Latxa-8B -> retrieve top 3 (51.17+/-0.70), also the highest MeanQ of its six
+#   (next: rerank5 at 50.93+/-1.11, retrieve top 5 at 50.62+/-0.79), with the
+#   tightest std of the three -- a clean win, and both models land on the same
+#   label this time (unlike the prior pin, which split Llama at top 5 vs
+#   Latxa at top 1).
+#   Since both models share retrieve top3 now, row 8 (few-shot + best RAG)
+#   and rows 9-10 (domain restriction) are both rewired to top_k=3 before
+#   their own rerun -- see staged_ablation_runner.py's run_model(), which
+#   applies this automatically from best_by_meanq() rather than needing a
+#   manual rewire step.
 #
 # ES: all three models' own best config is already "rerank top 5" (Mistral
 # 49.15+/-1.21 vs 2nd-best retrieve-top1 48.61+/-1.42; Qwen no-think 69.79+/-0.89 vs
@@ -201,7 +212,7 @@ STAGE_POOL = {
 # BOTH are kept as reference rows so the reader can judge the trade-off
 # directly. Mistral's own pin is single (rerank top 5, no competing candidate).
 FORCED_REFERENCES: dict[str, list[tuple[str, str]]] = {
-    "EU": [("retrieve top 5", "Llama"), ("retrieve top 1", "Latxa")],
+    "EU": [("retrieve top 3", "Llama"), ("retrieve top 3", "Latxa")],
     "ES": [("rerank top 5", "Mistral"),
            ("rerank top 5", "Qwen no-think"), ("rerank top 5", "Qwen think")],
 }
@@ -428,6 +439,7 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
                restrict: Optional[dict[str, frozenset[str]]] = None,
                best_sf_only: frozenset[tuple[str, str]] = frozenset(),
                pin_rows: frozenset[tuple[str, str]] = frozenset(),
+               color_pins: bool = True,
                separator_after: int = 0) -> list[str]:
     """`labels` is the row labels to show, in order. `restrict`, if given, maps a
     label to the SET of models whose rows should be shown for it -- used for
@@ -521,6 +533,17 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
         vals = [r[metric][0] for _, _, _, r in gathered if r[metric][0] is not None]
         if vals:
             best_of[metric] = max(vals)
+    # MeanQ is bolded PER MODEL, not once globally: each model carries forward
+    # its OWN best config into the next stage (see FORCED_REFERENCES's
+    # per-model pins), so the reader needs to see which row is best for Llama
+    # and, separately, which is best for Latxa -- a single global-max bold
+    # would only ever mark one model's row and leave the other model's own
+    # winner unmarked.
+    best_meanq_per_model: dict[str, float] = {}
+    for _, model, _, r in gathered:
+        mean = r["meanq"][0]
+        if mean is not None and mean > best_meanq_per_model.get(model, float("-inf")):
+            best_meanq_per_model[model] = mean
 
     for label_index, label in enumerate(labels):
         # Model-major, SF-minor (2a, 2a', 2b, 2b', ...): the noSF and SF row of one
@@ -548,7 +571,7 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
                     continue
                 exp_cell = esc(display_label(label, best_config, model))
                 is_pinned_row = (label, model) in pin_rows and (pin_sf is None or use_sf == pin_sf)
-                row_prefix = r"\rowcolor{pinnedrow}" if is_pinned_row else ""
+                row_prefix = r"\rowcolor{pinnedrow}" if (is_pinned_row and color_pins) else ""
                 cells = [
                     experiment_id(label, model, use_sf),
                     esc(model),
@@ -558,7 +581,10 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
                 for metric, _ in quality:
                     mean, std = row[metric]
                     cell = fmt(mean, std)
-                    is_col_best = mean is not None and metric in best_of and mean == best_of[metric]
+                    if metric == "meanq":
+                        is_col_best = mean is not None and mean == best_meanq_per_model.get(model)
+                    else:
+                        is_col_best = mean is not None and metric in best_of and mean == best_of[metric]
                     # highlight_rows marks a tie-break comparison's own MeanQ cell
                     # (not the whole row). The config being weighed is always the
                     # noSF one (best_label()'s search is noSF-only by convention),
@@ -616,7 +642,7 @@ def assign_ids(experiments, models) -> None:
         MODEL_LETTERS[model] = chr(ord("a") + i)
 
 
-def build_language(experiments, models, lang: str, dev_slug: str, suffix: str) -> None:
+def build_language(experiments, models, lang: str, dev_slug: str, suffix: str, color_pins: bool = True) -> None:
     """Four staged main-text tables + one full appendix table, for one language/dataset."""
     # ── staged main-text tables ────────────────────────────────────────────────
     pins = FORCED_REFERENCES.get(lang, [])
@@ -716,6 +742,7 @@ def build_language(experiments, models, lang: str, dev_slug: str, suffix: str) -
             highlight_rows=highlight_rows if is_tie_break_stage else frozenset(),
             best_sf_only=stage_best_sf_only,
             pin_rows=frozenset(pins),
+            color_pins=color_pins,
             separator_after=len(ref_labels) if reference else 0,
         )) + "\n")
 

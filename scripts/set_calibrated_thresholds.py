@@ -34,7 +34,11 @@ CONFIG_DIR = ROOT / "configs" / "experiments"
 TARGETS = {
     "calib_marag_es": "1303_qwen35_9b_marag_e5_rerank5_extractive_mixed_dev",
     "calib_marag_eu_topk3": "1313_llama31_8b_marag_e5_topk3_extractive_mixed_eu_dev",
-    "calib_marag_eu_latxa_topk1": "1323_latxa_llama31_8b_marag_e5_topk1_extractive_mixed_eu_dev",
+    # Latxa's single-pass RAG winner moved from retrieve top1 to retrieve top3
+    # once MC-accuracy was correctly included in MeanQ (sec:translation-artefact),
+    # so the calibration target moved with it -- calib_marag_eu_latxa_topk1's
+    # threshold was read off topk1 candidates and does not transfer.
+    "calib_marag_eu_latxa_topk3": "1327_latxa_llama31_8b_marag_e5_topk3_extractive_mixed_eu_dev",
     "calib_marag_es_nothink": "1333_qwen35_9b_marag_e5_rerank5_no_think_extractive_mixed_dev",
 }
 

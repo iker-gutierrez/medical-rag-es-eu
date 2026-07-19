@@ -30,6 +30,6 @@
   "query_max_new_tokens": 128,
   "ranking_max_new_tokens": 32,
   "conflict_threshold_mc": 0.0,
-  "conflict_threshold_open": null,
-  "conflict_threshold_provenance": "PENDING: not yet calibrated for no-think mode (see calib_marag_es_nothink). Fill in from scripts/analyze_conflict_calibration.py's es_nothink report before running this config -- do not reuse the think-mode value (0.093), which was calibrated on a different candidate distribution."
+  "conflict_threshold_open": 0.026,
+  "conflict_threshold_provenance": "median round-1 semantic conflict over 12 open-answer records of the 24-record stratified calibration subsample (calib_marag_es_nothink)"
 }
