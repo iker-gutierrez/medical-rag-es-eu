@@ -18,7 +18,7 @@
   "repetition_detection_max_pattern": 20,
   "repetition_detection_min_pattern": 1,
   "repetition_detection_min_count": 8,
-  "retrieval_index": "models/retrieval/sns1064_casimedicos_eu_train_multilingual_e5_large",
+  "retrieval_index": "models/retrieval/sns1064_casimedicos_eu_full_multilingual_e5_large",
   "retrieval_top_k": 3,
   "reranker_model": "",
   "reranker_top_k": 0,

@@ -8,7 +8,7 @@
   "self_feedback": true,
   "temperature": 1.0,
   "trust_remote_code": true,
-  "retrieval_index": "models/retrieval/sns1064_train_multilingual_e5_large",
+  "retrieval_index": "models/retrieval/sns1064_full_multilingual_e5_large",
   "retrieval_top_k": 5,
   "max_new_tokens": 1024,
   "feedback_max_new_tokens": 512,

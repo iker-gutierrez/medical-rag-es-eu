@@ -9,7 +9,7 @@
   "temperature": 0.6,
   "input": "data/processed/sns1064_eu/dev.jsonl",
   "trust_remote_code": true,
-  "retrieval_index": "models/retrieval/sns1064_eu_train_multilingual_e5_large",
+  "retrieval_index": "models/retrieval/sns1064_eu_full_multilingual_e5_large",
   "retrieval_top_k": 1,
   "experiment_name": "latxa_llama31_8b_rag_e5_topk1_extractive_sns1064_eu",
   "output": "experiments/runs/118_latxa_llama31_8b_rag_e5_topk1_extractive_sns1064_eu_dev/predictions.jsonl",

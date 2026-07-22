@@ -42,11 +42,24 @@ def parse_args() -> argparse.Namespace:
 
 
 def load_model(model_name: str, device: str):
+    import torch
     from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
     print(f"Loading translation model: {model_name}", flush=True)
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+
+    # transformers>=5 refuses to force-tie model.shared.weight / lm_head.weight
+    # when the checkpoint stores them as distinct (but supposed-to-be-tied)
+    # tensors, leaving lm_head at its untrained init and producing incoherent
+    # output. The checkpoint's shared/input embedding is the trained one;
+    # copy it into the output head to restore the intended tying.
+    input_emb = model.get_input_embeddings().weight
+    output_emb = model.get_output_embeddings().weight
+    if not torch.equal(input_emb, output_emb):
+        with torch.no_grad():
+            output_emb.copy_(input_emb)
+
     model = model.to(device)
     model.eval()
     return tokenizer, model

@@ -54,7 +54,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from rewire_dependent_configs import (  # noqa: E402
     MODELS, base_retrieval_fields, apply_base,
 )
-from meanq import best_by_meanq  # noqa: E402
+from meanq import best_by_meanq_robust  # noqa: E402
 
 RUNS = ROOT / "experiments" / "runs"
 METRICS = ROOT / "reports" / "metrics"
@@ -139,7 +139,80 @@ def wait_for_job(job: str) -> None:
         time.sleep(30)
 
 
-def evaluate(configs: list[tuple[str, str]], lang: str) -> None:
+def submit_eval_array(configs: list[tuple[str, str]], label: str, lang: str, *, throttle: int = 1) -> "str | None":
+    """Submit evaluation (BERTScore + ROUGE-L + MC-acc) as a real Slurm array,
+    one task per (prefix, base, seed) whose predictions.jsonl exists and is
+    newer than its metrics file -- mirrors submit_infer_array()'s task-file/
+    array-script pattern so generation and evaluation are scheduled the same
+    way and both count against the account's actual GPU quota.
+
+    Before this, evaluate() ran BERTScore inline in the orchestrator's own
+    process via scripts/pick_free_gpu.sh, claiming a GPU directly on whatever
+    node the long-lived orchestrator happened to be on -- invisible to
+    `squeue` and NOT counted against the account's gres/gpu=2 QOS cap, since
+    Slurm never allocated it. That let total real GPU usage exceed the quota
+    without Slurm's scheduler knowing, and gave eval no fair queue position
+    against other users' jobs. Submitting a proper array fixes both: eval now
+    competes for the same throttled, quota-tracked slots as generation.
+
+    Returns None (not job id) if every predictions.jsonl is already scored
+    with fresh metrics -- nothing to submit, caller should skip wait_for_job.
+    """
+    tasks = []
+    for prefix, base in configs:
+        for seed in SEEDS:
+            run = f"{prefix}_{base}_seed{seed}"
+            pred = RUNS / run / "predictions.jsonl"
+            out = METRICS / f"{run}.json"
+            if pred.exists() and not (out.exists() and out.stat().st_mtime >= pred.stat().st_mtime):
+                tasks.append(f"{run} {pred} {out}")
+    if not tasks:
+        return None
+
+    task_file = ROOT / "experiments" / f"staged_{label}_eval_tasks.txt"
+    task_file.write_text("\n".join(tasks) + "\n")
+
+    script = ROOT / "slurm" / f"staged_{label}_eval.sh"
+    script.write_text(f"""#!/bin/bash
+#SBATCH --job-name=staged-eval-{label}
+#SBATCH --array=0-{len(tasks) - 1}%{throttle}
+#SBATCH --cpus-per-task=4
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --time=02:00:00
+#SBATCH --mem=16GB
+#SBATCH --gres=gpu:1
+#SBATCH --output={ROOT}/experiments/slurm_logs/staged_{label}_eval_%A_%a.log
+#SBATCH --error={ROOT}/experiments/slurm_logs/staged_{label}_eval_%A_%a.err
+#SBATCH --chdir={ROOT}
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user=igutierrez134@ikasle.ehu.eus
+set -euo pipefail
+mapfile -t TASKS < {task_file}
+ENTRY="${{TASKS[$SLURM_ARRAY_TASK_ID]}}"
+PRED="$(echo "$ENTRY" | cut -d' ' -f2)"
+OUT="$(echo "$ENTRY" | cut -d' ' -f3)"
+source /home/igutierrez134/envs/med_rag_thesis/bin/activate
+export HF_HOME="/home/igutierrez134/.cache/huggingface"
+export TRANSFORMERS_CACHE="/home/igutierrez134/.cache/huggingface"
+export HF_HUB_CACHE="/home/igutierrez134/.cache/huggingface"
+export TOKENIZERS_PARALLELISM=false
+scripts/pick_free_gpu.sh 2000 python scripts/evaluate_predictions_by_source.py \\
+  --predictions "$PRED" --output "$OUT" \\
+  --semantic-model "" \\
+  --bertscore-model bert-base-multilingual-cased \\
+  --bertscore-lang {lang} \\
+  --bertscore-device cuda:0
+""")
+    script.chmod(0o755)
+    out = subprocess.run(["sbatch", "--parsable", str(script)], cwd=ROOT,
+                          capture_output=True, text=True, check=True).stdout
+    job = out.strip().split("_")[0]
+    print(f"  [{label}] submitted eval array {job} ({len(tasks)} tasks, %{throttle} throttle)", flush=True)
+    return job
+
+
+def evaluate(configs: list[tuple[str, str]], lang: str, *, label: str = "eval", throttle: int = 1) -> None:
     """Evaluate every (prefix, base, seed) run whose predictions are missing a
     metrics file OR whose metrics file predates its predictions.jsonl.
 
@@ -167,20 +240,20 @@ def evaluate(configs: list[tuple[str, str]], lang: str) -> None:
     file this produces has mc_accuracy absent, so meanq() silently falls back
     to a 2-component mean (ROUGE-L, BERT-F1 only) instead of 3 -- which
     changed the actual stage-A MeanQ winner for both EU models once caught
-    and fixed (rerank5 -> retrieve top3), so this is not a cosmetic gap."""
-    for prefix, base in configs:
-        for seed in SEEDS:
-            run = f"{prefix}_{base}_seed{seed}"
-            pred = RUNS / run / "predictions.jsonl"
-            out = METRICS / f"{run}.json"
-            if pred.exists():
-                sh([
-                    sys.executable, "scripts/evaluate_predictions_by_source.py",
-                    "--predictions", str(pred), "--output", str(out),
-                    "--semantic-model", "",
-                    "--bertscore-model", "bert-base-multilingual-cased",
-                    "--bertscore-lang", lang,
-                ])
+    and fixed (rerank5 -> retrieve top3), so this is not a cosmetic gap.
+
+    BERTScore runs on a GPU (scripts/pick_free_gpu.sh, same claim-a-free-card
+    pattern as generation, just with a much smaller memory floor since loading
+    bert-base-multilingual-cased takes ~1-2 GiB, not the ~40 GiB a vLLM
+    generation task reserves): on CPU each of the 21 stage-A seed/config
+    evaluations reloads and reruns the model from scratch, which is the slow
+    part of this whole step; a GPU cuts that down by roughly an order of
+    magnitude. Submitted as a real Slurm array (submit_eval_array) rather than
+    run inline, so eval GPU usage is scheduled and quota-tracked the same way
+    generation is -- see submit_eval_array's docstring for why that matters."""
+    job = submit_eval_array(configs, label, lang, throttle=throttle)
+    if job is not None:
+        wait_for_job(job)
     sh([sys.executable, "scripts/patch_mc_accuracy.py"])
 
 
@@ -190,7 +263,7 @@ def run_model(name: str, spec: dict, dry_run: bool, throttle: int = 1, skip_stag
     if skip_stage_a:
         print(f"\n[{name}] ===== stage A skipped (--skip-stage-a): re-evaluating existing "
               f"predictions only, no generation resubmitted =====", flush=True)
-        evaluate(stage_a, lang)
+        evaluate(stage_a, lang, label=f"{name}_A", throttle=throttle)
     else:
         print(f"\n[{name}] ===== stage A (baseline + retrieval sweep) =====", flush=True)
         if dry_run:
@@ -199,15 +272,16 @@ def run_model(name: str, spec: dict, dry_run: bool, throttle: int = 1, skip_stag
         else:
             job = submit_infer_array(stage_a, f"{name}_A", throttle=throttle)
             wait_for_job(job)
-            evaluate(stage_a, lang)
+            evaluate(stage_a, lang, label=f"{name}_A", throttle=throttle)
 
-    win_r, scores_r = best_by_meanq(spec["retrieval"])
+    win_r, stats_r = best_by_meanq_robust(spec["retrieval"])
     if win_r is None:
         print(f"[{name}]   no retrieval metrics yet (dry run or eval pending) -- stopping here")
         return
-    print(f"[{name}]   stage A MeanQ: " + ", ".join(f"{k}={v:.2f}" for k, v in
-          sorted(scores_r.items(), key=lambda x: -x[1])))
-    print(f"[{name}]   stage A winner: {win_r}")
+    print(f"[{name}]   stage A MeanQ (mean/std/cost): " + ", ".join(
+        f"{k}={v['mean']:.2f}/{v['std']:.2f}/{v['cost']:.0f}"
+        for k, v in sorted(stats_r.items(), key=lambda x: -x[1]["mean"])))
+    print(f"[{name}]   stage A winner: {win_r} (variance/cost-aware selection)")
 
     print(f"\n[{name}] ===== stage B (row 7 few-shot no-RAG, row 8 few-shot+best-RAG) =====", flush=True)
     win_prefix, win_base = spec["retrieval"][win_r]
@@ -221,17 +295,18 @@ def run_model(name: str, spec: dict, dry_run: bool, throttle: int = 1, skip_stag
     else:
         job = submit_infer_array(stage_b, f"{name}_B", throttle=throttle)
         wait_for_job(job)
-        evaluate(stage_b, lang)
+        evaluate(stage_b, lang, label=f"{name}_B", throttle=throttle)
 
     print(f"\n[{name}] ===== stage C (domain restriction, rows 9-10) =====", flush=True)
     pre_domain = dict(spec["retrieval"])
     pre_domain["3-shot + best RAG"] = spec["row8"]
-    win_pd, scores_pd = best_by_meanq(pre_domain)
+    win_pd, stats_pd = best_by_meanq_robust(pre_domain)
     if win_pd is None:
         print(f"[{name}]   stage B metrics not ready -- stopping here")
         return
     print(f"[{name}]   domain base winner (retrieving configs only): {win_pd} "
-          f"(MeanQ {scores_pd[win_pd]:.2f})")
+          f"(MeanQ {stats_pd[win_pd]['mean']:.2f}, std {stats_pd[win_pd]['std']:.2f}, "
+          f"variance/cost-aware selection)")
     pd_prefix, pd_base = pre_domain[win_pd]
     domain_fields = base_retrieval_fields(pd_prefix, pd_base)
     domain_fields = {k: v for k, v in domain_fields.items() if k != "retrieval_index"}
@@ -244,7 +319,7 @@ def run_model(name: str, spec: dict, dry_run: bool, throttle: int = 1, skip_stag
     else:
         job = submit_infer_array(stage_c, f"{name}_C", throttle=throttle)
         wait_for_job(job)
-        evaluate(stage_c, lang)
+        evaluate(stage_c, lang, label=f"{name}_C", throttle=throttle)
 
     print(f"\n[{name}] staged run complete (11/11 configs).", flush=True)
 

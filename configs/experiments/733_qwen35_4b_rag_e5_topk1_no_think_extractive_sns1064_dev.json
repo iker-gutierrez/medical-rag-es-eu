@@ -9,7 +9,7 @@
   "temperature": 1.0,
   "trust_remote_code": true,
   "max_new_tokens": 2048,
-  "retrieval_index": "models/retrieval/sns1064_train_multilingual_e5_large",
+  "retrieval_index": "models/retrieval/sns1064_full_multilingual_e5_large",
   "retrieval_top_k": 1,
   "top_p": 0.95,
   "top_k": 20,

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 import sys
 import time
 from pathlib import Path
@@ -24,6 +25,9 @@ from typing import Any, Mapping, Optional, Sequence
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "scripts"))
+
+from run_generation_experiment import sample_random_examples  # noqa: E402
 
 from medical_rag_thesis.data_io import read_jsonl, write_jsonl  # noqa: E402
 from medical_rag_thesis.generation import (  # noqa: E402
@@ -129,6 +133,22 @@ class Config:
         # Query encoder shares the GPU with vLLM, so it defaults to CPU (see Retriever).
         self.retriever_device: str = payload.get("retriever_device", "cpu")
 
+        # few-shot demonstrations (optional; row 8's "3-shot + <base>" ablation
+        # row on top of a pipeline instead of the plain single-pass base). Only
+        # the pipeline's final, answer-emitting call(s) get the examples --
+        # see reasoning._few_shot_section. Absent by default so every existing
+        # config (no few_shot_file) behaves exactly as before.
+        self.few_shot_file: Optional[str] = payload.get("few_shot_file")
+        self.few_shot_k: int = int(payload.get("few_shot_k", 0))
+        self.few_shot_mode: str = payload.get("few_shot_mode", "random")
+        if self.few_shot_k > 0 and self.few_shot_mode != "random":
+            raise ValueError(
+                f"few_shot_mode={self.few_shot_mode!r} not supported here -- "
+                "only 'random' (config 1280's mode) is wired into the "
+                "reasoning-pipeline runner; 'retrieval' mode would need a "
+                "live per-record retriever call this driver doesn't make."
+            )
+
         # pipeline knobs
         self.rounds: int = int(payload.get("rounds", 2))
         self.num_candidates: int = int(payload.get("num_candidates", 3))
@@ -175,7 +195,7 @@ class Generator:
 
         self.config = config
         self.tokenizer = AutoTokenizer.from_pretrained(
-            config.model, trust_remote_code=config.trust_remote_code
+            config.model, trust_remote_code=config.trust_remote_code, fix_mistral_regex=True,
         )
         if self.tokenizer.pad_token_id is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
@@ -450,6 +470,8 @@ def run_structured_cot(
     retriever: Retriever,
     config: Config,
     acc: Accumulator,
+    *,
+    examples_per_record: Optional[list[list[dict[str, Any]]]] = None,
 ) -> tuple[list[str], list[Optional[str]], list[list[dict[str, Any]]], list[list[str]]]:
     docs_per_record = []
     candidate_ids = []
@@ -462,9 +484,10 @@ def run_structured_cot(
         docs_per_record.append(docs)
         candidate_ids.append([str(doc.get("doc_id") or "") for doc in docs])
 
+    examples_per_record = examples_per_record or [[] for _ in records]
     prompts = [
-        build_structured_cot_prompt(record, docs, language=config.language)
-        for record, docs in zip(records, docs_per_record)
+        build_structured_cot_prompt(record, docs, language=config.language, examples=examples)
+        for record, docs, examples in zip(records, docs_per_record, examples_per_record)
     ]
     started = time.perf_counter()
     answers, reasons, chat_prompts = generator.generate_one(
@@ -495,11 +518,13 @@ def run_thought_rag(
     acc: Accumulator,
     *,
     rounds: int,
+    examples_per_record: Optional[list[list[dict[str, Any]]]] = None,
 ) -> tuple[list[str], list[Optional[str]], list[list[dict[str, Any]]], list[list[str]]]:
     """RAR2. `rounds == 1` is the single-retrieval variant; `rounds > 1` is the
     paper's Iterative Scaling, where each round re-thinks *with* what the previous
     round retrieved and searches again."""
     n = len(records)
+    examples_per_record = examples_per_record or [[] for _ in range(n)]
     docs_per_record: list[list[dict[str, Any]]] = [[] for _ in range(n)]
     candidate_ids: list[list[str]] = [[] for _ in range(n)]
     thoughts: list[str] = ["" for _ in range(n)]
@@ -544,7 +569,10 @@ def run_thought_rag(
         print(f"  [thought_rag] round {round_index + 1}/{rounds} retrieved", flush=True)
 
     prompts = [
-        build_thought_answer_prompt(record, docs_per_record[i], thoughts[i], language=config.language)
+        build_thought_answer_prompt(
+            record, docs_per_record[i], thoughts[i], language=config.language,
+            examples=examples_per_record[i],
+        )
         for i, record in enumerate(records)
     ]
     started = time.perf_counter()
@@ -571,6 +599,8 @@ def run_marag(
     retriever: Retriever,
     config: Config,
     acc: Accumulator,
+    *,
+    examples_per_record: Optional[list[list[dict[str, Any]]]] = None,
 ) -> tuple[list[str], list[Optional[str]], list[list[dict[str, Any]]], list[list[str]]]:
     """MA-RAG adapted to generative QA.
 
@@ -581,6 +611,7 @@ def run_marag(
     answer. Records that reached consensus early keep their agreed candidate.
     """
     n = len(records)
+    examples_per_record = examples_per_record or [[] for _ in range(n)]
     docs_per_record: list[list[dict[str, Any]]] = []
     candidate_ids: list[list[str]] = []
     for record in records:
@@ -603,7 +634,8 @@ def run_marag(
 
         prompts = [
             build_solver_prompt(
-                records[i], docs_per_record[i], language=config.language, best_previous=best_previous[i]
+                records[i], docs_per_record[i], language=config.language, best_previous=best_previous[i],
+                examples=examples_per_record[i],
             )
             for i in active
         ]
@@ -737,6 +769,7 @@ def run_marag(
                 docs_per_record[i],
                 final_candidates[i] or [best_previous[i]],
                 language=config.language,
+                examples=examples_per_record[i],
             )
             for i in unresolved
         ]
@@ -806,25 +839,38 @@ def run(args: argparse.Namespace) -> None:
         records = records[: config.limit]
     print(f"{config.experiment_name}: {config.pipeline} on {len(records)} records (seed {config.seed})", flush=True)
 
+    examples_per_record: list[list[dict[str, Any]]] = [[] for _ in records]
+    if config.few_shot_k > 0:
+        few_shot_path = Path(config.few_shot_file)
+        if not few_shot_path.is_absolute():
+            few_shot_path = ROOT / few_shot_path
+        few_shot_pool = read_jsonl(few_shot_path)
+        rng = random.Random(config.seed)
+        examples_per_record = [
+            sample_random_examples(rng, few_shot_pool, record, config.few_shot_k)
+            for record in records
+        ]
+
     retriever = Retriever(config)
     generator = Generator(config)
     acc = Accumulator(len(records))
 
     if config.pipeline == "structured_cot":
         answers, reasons, docs_per_record, candidate_ids = run_structured_cot(
-            records, generator, retriever, config, acc
+            records, generator, retriever, config, acc, examples_per_record=examples_per_record
         )
     elif config.pipeline == "thought_rag":
         answers, reasons, docs_per_record, candidate_ids = run_thought_rag(
-            records, generator, retriever, config, acc, rounds=1
+            records, generator, retriever, config, acc, rounds=1, examples_per_record=examples_per_record
         )
     elif config.pipeline == "thought_rag_iter":
         answers, reasons, docs_per_record, candidate_ids = run_thought_rag(
-            records, generator, retriever, config, acc, rounds=max(2, config.rounds)
+            records, generator, retriever, config, acc, rounds=max(2, config.rounds),
+            examples_per_record=examples_per_record,
         )
     elif config.pipeline == "marag":
         answers, reasons, docs_per_record, candidate_ids = run_marag(
-            records, generator, retriever, config, acc
+            records, generator, retriever, config, acc, examples_per_record=examples_per_record
         )
     else:  # unreachable: Config validates
         raise ValueError(config.pipeline)
@@ -873,7 +919,9 @@ def run(args: argparse.Namespace) -> None:
                 "parsed_initial_prediction": parsed,
                 "prediction_text": answer_text,
                 "parsed_prediction": parsed,
-                "few_shot_ids": [],
+                "few_shot_ids": [
+                    str(example.get("id") or "") for example in examples_per_record[i]
+                ],
                 "retrieval_docs": docs_per_record[i],
                 "retrieval_candidate_ids": candidate_ids[i],
                 "reasoning_trace": acc.trace[i],
@@ -938,6 +986,9 @@ def run(args: argparse.Namespace) -> None:
         "reranker_top_k": config.reranker_top_k,
         "reranker_device": config.reranker_device,
         "self_feedback": False,
+        "few_shot_file": config.few_shot_file,
+        "few_shot_k": config.few_shot_k,
+        "few_shot_mode": config.few_shot_mode,
         "thinking_token_budget": config.thinking_token_budget,
         "pipeline_params": {
             "rounds": config.rounds,

@@ -1,16 +1,17 @@
 {
-  "dataset": "HiTZ/casimedicos-arg",
+  "dataset": "HiTZ/casimedicos-exp",
   "config": "es",
-  "raw_dir": "data/raw/casimedicos_arg",
+  "raw_dir": "data/raw/casimedicos_exp",
   "output_dir": "data/processed/casimedicos",
   "num_raw_records": 622,
-  "num_normalized_records": 553,
+  "num_normalized_records": 622,
   "splits": {
-    "train": 381,
-    "dev": 55,
-    "test": 117
+    "train": 434,
+    "dev": 63,
+    "test": 125
   },
   "sources": {
-    "CasiMedicos": 553
-  }
+    "CasiMedicos": 622
+  },
+  "note": "Splits are as published by HiTZ authors on HuggingFace (not resampled)."
 }

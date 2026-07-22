@@ -13,11 +13,16 @@ data/interim/*
 data/processed/*
 data/external/*
 experiments/runs/*
+experiments/runs_archive*/
+experiments/runs_v2/
+experiments/runs_hf_baseline/
+experiments/runs_stale_oldbudget/
 experiments/slurm_logs/*
 models/*
 reports/figures/*
 reports/metrics/*
 reports/metrics_v2/*
+reports/metrics_archive/
 
 # Track processed datasets (exclude smoke test subsets)
 !data/processed/sns1064/

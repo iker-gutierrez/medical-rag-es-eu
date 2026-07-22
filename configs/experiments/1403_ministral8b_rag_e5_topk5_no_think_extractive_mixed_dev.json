@@ -1,0 +1,19 @@
+{
+  "experiment_name": "ministral8b_rag_e5_topk5_no_think_extractive_mixed",
+  "input": "data/processed/sns1064_casimedicos/dev.jsonl",
+  "output": "experiments/runs/1403_ministral8b_rag_e5_topk5_no_think_extractive_mixed_dev/predictions.jsonl",
+  "model": "mistralai/Ministral-3-8B-Instruct-2512",
+  "prompt_style": "extractive",
+  "think": false,
+  "self_feedback": true,
+  "max_new_tokens": 2048,
+  "num_runs": 1,
+  "temperature": 0.09,
+  "top_p": 1.0,
+  "retrieval_index": "models/retrieval/sns1064_casimedicos_full_multilingual_e5_large",
+  "retrieval_top_k": 5,
+  "max_truncation_retries": 3,
+  "repetition_detection_max_pattern": 20,
+  "repetition_detection_min_pattern": 1,
+  "repetition_detection_min_count": 8
+}

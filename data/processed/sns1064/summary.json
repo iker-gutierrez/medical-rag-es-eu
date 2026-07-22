@@ -2,9 +2,9 @@
   "input": "data/raw/sns1064.csv",
   "num_records": 1064,
   "splits": {
-    "train": 851,
-    "test": 107,
-    "dev": 106
+    "train": 876,
+    "test": 125,
+    "dev": 63
   },
   "topics": {
     "En adultos con TAG, ¿cuál es la efectividad y seguridad comparada de la galphimia glauca frente al lorazepam?": 10,

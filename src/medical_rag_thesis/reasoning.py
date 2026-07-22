@@ -38,6 +38,7 @@ import numpy as np
 
 from medical_rag_thesis.prompts import (
     format_context_text,
+    format_examples,
     format_options,
     format_question,
     parse_answer_sections,
@@ -140,6 +141,26 @@ def _context_section(documents: Sequence[Mapping[str, Any]], language: str) -> l
     return [f"{lab['context']}:\n" + context_text]
 
 
+FEW_SHOT_INTRO = {
+    "es": "Usa estos ejemplos solo para aprender el formato de salida:",
+    "eu": "Erabili adibide hauek soilik irteera-formatua ikasteko:",
+}
+
+
+def _few_shot_section(
+    examples: Optional[Sequence[Mapping[str, Any]]], language: str
+) -> list[str]:
+    """Same demonstrations, same intro line, as prompts.build_extractive_user_prompt
+    (row 8's "3-shot + <base>" ablation row) -- only for the pipeline's final,
+    answer-emitting call, since the demonstrations teach output *format*, and the
+    intermediate reasoning/ranking/query calls in these pipelines don't emit that
+    format at all."""
+    if not examples:
+        return []
+    intro = FEW_SHOT_INTRO.get(language, FEW_SHOT_INTRO["es"])
+    return [intro + "\n\n" + format_examples(examples, language=language)]
+
+
 # --------------------------------------------------------------------------
 # 1. Structured clinical chain of thought (MedCoT-RAG)
 # --------------------------------------------------------------------------
@@ -195,6 +216,8 @@ def build_structured_cot_prompt(
     record: Mapping[str, Any],
     documents: Sequence[Mapping[str, Any]],
     language: str = "es",
+    *,
+    examples: Optional[Sequence[Mapping[str, Any]]] = None,
 ) -> str:
     lab = labels(language)
     if language == "eu":
@@ -218,6 +241,7 @@ def build_structured_cot_prompt(
             f"- {lab['reply_in']}"
         )
     sections = [header, rules, STRUCTURED_COT_STEPS.get(language, STRUCTURED_COT_STEPS["es"])]
+    sections += _few_shot_section(examples, language)
     sections += _context_section(documents, language)
     sections += _question_and_options(record, language)
     has_options = bool(format_options(record))
@@ -293,6 +317,8 @@ def build_thought_answer_prompt(
     documents: Sequence[Mapping[str, Any]],
     thought: str,
     language: str = "es",
+    *,
+    examples: Optional[Sequence[Mapping[str, Any]]] = None,
 ) -> str:
     """Stage C of RAR2: retrieval-augmented reasoning -- answer given the thought
     process *and* the evidence that thought retrieved."""
@@ -318,6 +344,7 @@ def build_thought_answer_prompt(
             f"- {lab['reply_in']}"
         )
     sections = [header, rules]
+    sections += _few_shot_section(examples, language)
     sections += _context_section(documents, language)
     sections += _question_and_options(record, language)
     sections.append(f"{lab['thought']}:\n" + thought.strip())
@@ -336,6 +363,7 @@ def build_solver_prompt(
     language: str = "es",
     *,
     best_previous: str = "",
+    examples: Optional[Sequence[Mapping[str, Any]]] = None,
 ) -> str:
     """Solver agent. `best_previous` is the top-ranked trace kept from the last
     round -- MA-RAG's remedy for long-context degradation: history is *pruned to
@@ -364,6 +392,7 @@ def build_solver_prompt(
         )
         previous_label = "Mejor respuesta de la ronda anterior (revísala y mejórala; cámbiala si no estás de acuerdo):"
     sections = [header, rules]
+    sections += _few_shot_section(examples, language)
     sections += _context_section(documents, language)
     sections += _question_and_options(record, language)
     if best_previous.strip():
@@ -462,12 +491,15 @@ def build_consensus_prompt(
     documents: Sequence[Mapping[str, Any]],
     candidates: Sequence[str],
     language: str = "es",
+    *,
+    examples: Optional[Sequence[Mapping[str, Any]]] = None,
 ) -> str:
     lab = labels(language)
     instruction = CONSENSUS_INSTRUCTION.get(language, CONSENSUS_INSTRUCTION["es"])
     candidate_label = "Hautagaia" if language == "eu" else "Candidata"
     rules = f"{option_rule(record, language)}- {lab['reply_in']}"
     sections = [instruction, ("Arauak:\n" if language == "eu" else "Reglas:\n") + rules]
+    sections += _few_shot_section(examples, language)
     sections += _context_section(documents, language)
     sections += _question_and_options(record, language)
     for idx, candidate in enumerate(candidates, start=1):

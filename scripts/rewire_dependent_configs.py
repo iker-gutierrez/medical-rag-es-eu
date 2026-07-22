@@ -35,7 +35,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
-from meanq import best_by_meanq, meanq  # noqa: E402
+from meanq import best_by_meanq_robust, meanq  # noqa: E402
 
 CONFIG_DIR = ROOT / "configs" / "experiments"
 
@@ -64,6 +64,47 @@ MODELS = {
         "domain": {
             "SNS": ("1268", "mistral7b_rag_sns1064_e5_rerank5_no_think_extractive_mixed_dev"),
             "Casi": ("1269", "mistral7b_rag_casimedicos_e5_rerank5_no_think_extractive_mixed_dev"),
+        },
+    },
+    # Replaces mistral7b as the Spanish 7-8B-class generator actually run in the
+    # ablation grid (mistralai/Mistral-7B-Instruct-v0.3 is superseded by
+    # mistralai/Ministral-3-8B-Instruct-2512). mistral7b's entry above is kept,
+    # not deleted, so its configs/predictions/metrics remain reproducible; it is
+    # simply no longer part of the default --models run.
+    "ministral8b": {
+        "baseline": ("1400", "ministral8b_no_rag_no_think_extractive_mixed_dev"),
+        "lang": "es", "task": "mixed_dev", "tag": "no_think_extractive",
+        "retrieval": {
+            "retrieve top1": ("1401", "ministral8b_rag_e5_topk1_no_think_extractive_mixed_dev"),
+            "retrieve top3": ("1402", "ministral8b_rag_e5_topk3_no_think_extractive_mixed_dev"),
+            "retrieve top5": ("1403", "ministral8b_rag_e5_topk5_no_think_extractive_mixed_dev"),
+            "rerank1": ("1404", "ministral8b_rag_e5_rerank1_no_think_extractive_mixed_dev"),
+            "rerank3": ("1405", "ministral8b_rag_e5_rerank3_no_think_extractive_mixed_dev"),
+            "rerank5": ("1406", "ministral8b_rag_e5_rerank5_no_think_extractive_mixed_dev"),
+        },
+        "fewshot_no_rag": ("1407", "ministral8b_3shot_no_rag_no_think_extractive_mixed_dev"),
+        "row8": ("1410", "ministral8b_rag_3shot_e5_rerank5_no_think_extractive_mixed_dev"),
+        "domain": {
+            "SNS": ("1408", "ministral8b_rag_sns1064_e5_rerank5_no_think_extractive_mixed_dev"),
+            "Casi": ("1409", "ministral8b_rag_casimedicos_e5_rerank5_no_think_extractive_mixed_dev"),
+        },
+    },
+    "ministral_reasoning": {
+        "baseline": ("1430", "ministral8b_reasoning_no_rag_think_extractive_mixed_dev"),
+        "lang": "es", "task": "mixed_dev", "tag": "think_extractive",
+        "retrieval": {
+            "retrieve top1": ("1431", "ministral8b_reasoning_rag_e5_topk1_think_extractive_mixed_dev"),
+            "retrieve top3": ("1432", "ministral8b_reasoning_rag_e5_topk3_think_extractive_mixed_dev"),
+            "retrieve top5": ("1433", "ministral8b_reasoning_rag_e5_topk5_think_extractive_mixed_dev"),
+            "rerank1": ("1434", "ministral8b_reasoning_rag_e5_rerank1_think_extractive_mixed_dev"),
+            "rerank3": ("1435", "ministral8b_reasoning_rag_e5_rerank3_think_extractive_mixed_dev"),
+            "rerank5": ("1436", "ministral8b_reasoning_rag_e5_rerank5_think_extractive_mixed_dev"),
+        },
+        "fewshot_no_rag": ("1437", "ministral8b_reasoning_3shot_no_rag_think_extractive_mixed_dev"),
+        "row8": ("1440", "ministral8b_reasoning_rag_3shot_e5_rerank5_think_extractive_mixed_dev"),
+        "domain": {
+            "SNS": ("1438", "ministral8b_reasoning_rag_sns1064_e5_rerank5_think_extractive_mixed_dev"),
+            "Casi": ("1439", "ministral8b_reasoning_rag_casimedicos_e5_rerank5_think_extractive_mixed_dev"),
         },
     },
     "qwen35_9b_no_think": {
@@ -166,13 +207,16 @@ def process_model(name: str, spec: dict, apply: bool) -> list[str]:
     print(f"\n=== {name} ===")
     changed_runs: list[str] = []
 
-    # Stage A: best of the six retrieval rows -> feeds row 8.
-    win_r, scores_r = best_by_meanq(spec["retrieval"])
+    # Stage A: best of the six retrieval rows -> feeds row 8. Variance/cost-aware:
+    # a config within 0.5 MeanQ of the leader wins instead if it is meaningfully
+    # more stable across seeds or meaningfully cheaper (see best_by_meanq_robust).
+    win_r, stats_r = best_by_meanq_robust(spec["retrieval"])
     if win_r is None:
         print("  no retrieval metrics yet -- skipping (run after evaluation)")
         return changed_runs
-    print("  retrieval MeanQ:", ", ".join(f"{k}={v:.2f}" for k, v in
-          sorted(scores_r.items(), key=lambda x: -x[1])))
+    print("  retrieval MeanQ (mean/std/cost):", ", ".join(
+        f"{k}={v['mean']:.2f}/{v['std']:.2f}/{v['cost']:.0f}"
+        for k, v in sorted(stats_r.items(), key=lambda x: -x[1]["mean"])))
     print(f"  best retrieval (row 8 base): {win_r}")
 
     win_prefix, win_base = spec["retrieval"][win_r]
@@ -194,9 +238,11 @@ def process_model(name: str, spec: dict, apply: bool) -> list[str]:
     # the quality ranking on MC-acc, must not be allowed to win the domain pool.)
     pre_domain = dict(spec["retrieval"])
     pre_domain["3-shot + best RAG"] = spec["row8"]
-    win_pd, scores_pd = best_by_meanq(pre_domain)
+    win_pd, stats_pd = best_by_meanq_robust(pre_domain)
+    win_pd_stats = stats_pd.get(win_pd, {})
     print(f"  best retrieving config (domain base): {win_pd}"
-          f"  (MeanQ {scores_pd.get(win_pd, float('nan')):.2f})")
+          f"  (MeanQ {win_pd_stats.get('mean', float('nan')):.2f}, "
+          f"std {win_pd_stats.get('std', float('nan')):.2f})")
     pd_prefix, pd_base = pre_domain[win_pd]
     domain_base_fields = base_retrieval_fields(pd_prefix, pd_base)
     # The domain rows keep their own restricted retrieval_index; only the

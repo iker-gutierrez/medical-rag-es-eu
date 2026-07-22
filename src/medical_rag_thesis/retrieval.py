@@ -189,6 +189,83 @@ class EmbeddingRetriever:
         return results
 
 
+# Evidence-only experiment: used only with indices built by indexing solely the
+# evidence column of the corpus (not the full record), a rejected alternative
+# design discussed but not adopted in the manuscript (see manuscript/main.tex,
+# "Corpus and index").
+class LeakLoggingEmbeddingRetriever(EmbeddingRetriever):
+    """EmbeddingRetriever variant used ONLY by the evidence-only-index runs
+    (scripts/clone_configs_evidence_only.py's `log_retrieval_leak` config
+    field), to answer a concrete question raised during that work: how often
+    would the query's own gold document have appeared in a naive top-k+1
+    search, absent self-retrieval exclusion?
+
+    Behaviourally IDENTICAL to EmbeddingRetriever.query() -- same top_k
+    passages returned to the generator, same exclusion of the query's own
+    document -- this only ADDS bookkeeping: every call over-fetches k+1
+    candidates (as the base class already does when exclude_id is set) and
+    records, in self.leak_log, whether the excluded document was actually
+    present among them. Kept as a separate subclass rather than folded into
+    EmbeddingRetriever itself so the shared class used by the live ablation
+    grid and reasoning pipelines is untouched.
+    """
+
+    def __init__(self, index_dir: Union[str, Path], device: Optional[str] = None):
+        super().__init__(index_dir, device=device)
+        # One entry per query() call that passed exclude_id: {"query_id":
+        # exclude_id, "top_k": top_k, "excluded_present": bool,
+        # "excluded_rank": int | None (1-indexed position in the naive top
+        # k+1 ranking, before exclusion, only set when excluded_present)}.
+        self.leak_log: list[dict[str, Any]] = []
+
+    def query(
+        self, text: str, top_k: int = 3, exclude_id: Optional[str] = None
+    ) -> list[dict[str, Any]]:
+        if self.backend == "dense":
+            query_prefix = self.config.get("query_prefix", "")
+            query_embedding = self.model.encode(
+                [f"{query_prefix}{text}"],
+                convert_to_numpy=True,
+                normalize_embeddings=True,
+                show_progress_bar=False,
+            )
+            query_embedding = normalize_embeddings(np.asarray(query_embedding, dtype=np.float32))
+            scores = np.dot(self.embeddings, query_embedding[0])
+        else:
+            query_vector = self.vectorizer.transform([text])
+            scores = (self.matrix @ query_vector.T).toarray().ravel()
+
+        fetch_k = top_k + 1 if exclude_id is not None else top_k
+        top_indices = np.argsort(-scores)[:fetch_k]
+
+        if exclude_id is not None:
+            excluded_present = False
+            excluded_rank = None
+            for naive_rank, index in enumerate(top_indices, start=1):
+                if str(self.metadata[int(index)].get("doc_id")) == str(exclude_id):
+                    excluded_present = True
+                    excluded_rank = naive_rank
+                    break
+            self.leak_log.append({
+                "query_id": exclude_id,
+                "top_k": top_k,
+                "excluded_present": excluded_present,
+                "excluded_rank": excluded_rank,
+            })
+
+        results = []
+        for index in top_indices:
+            item = dict(self.metadata[int(index)])
+            if exclude_id is not None and str(item.get("doc_id")) == str(exclude_id):
+                continue
+            item["score"] = float(scores[int(index)])
+            item["rank"] = len(results) + 1
+            results.append(item)
+            if len(results) == top_k:
+                break
+        return results
+
+
 def load_records_for_index(paths: Iterable[Union[str, Path]]) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     for path in paths:

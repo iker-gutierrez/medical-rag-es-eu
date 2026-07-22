@@ -125,6 +125,103 @@ def best_by_meanq(candidates: dict[str, tuple[str, str]], *, use_sf: bool = Fals
     return winner, scores
 
 
+def relative_cost(prefix: str, base: str) -> float:
+    """A monotone proxy for a RAG config's inference cost: the number of
+    documents actually retrieved/embedded into the prompt (retrieval_top_k),
+    plus a fixed penalty for running the cross-encoder reranker (it scores
+    every one of the retrieval_top_k candidates -- typically 15 in this grid
+    -- regardless of how many survive to reranker_top_k, so that full pass is
+    real wall-clock cost the final top_k number alone would hide).
+
+    Not calibrated to actual latency/FLOPs; only used to break near-ties in
+    MeanQ toward the cheaper of two options that score almost the same.
+    """
+    config_path = ROOT / "configs" / "experiments" / f"{prefix}_{base}.json"
+    if not config_path.exists():
+        return float("inf")
+    config = json.loads(config_path.read_text())
+    cost = float(config.get("retrieval_top_k") or 0)
+    if config.get("reranker_model"):
+        cost += 5.0  # fixed reranker-pass penalty, on the same rough scale as top_k
+    return cost
+
+
+def best_by_meanq_robust(
+    candidates: dict[str, tuple[str, str]], *, use_sf: bool = False,
+    margin: float = 0.5, std_ratio: float = 0.4, cost_ratio: float = 0.4,
+) -> tuple[Optional[str], dict[str, dict]]:
+    """Variance- and cost-aware version of best_by_meanq, using a pairwise,
+    point-scored tie-break (see manuscript \\S "Selecting the best
+    configuration" / sec:selection-rule for the formal statement).
+
+    Reduces to the plain highest-mean-MeanQ winner whenever the leader's mean
+    is at least `margin` points clear of every other candidate. Otherwise, the
+    leader is compared pairwise against each candidate within `margin` points:
+    each of standard deviation and cost independently awards one point to
+    whichever side wins it by more than `std_ratio` / `cost_ratio` (as a
+    fraction of the larger of the two values on that axis) -- a criterion that
+    doesn't clear its own threshold awards no point to either side. Whichever
+    side has more points after both criteria is preferred; if the two split
+    one point each, or neither criterion is decisive, the pairwise winner
+    falls back to whichever of the two has the higher mean MeanQ (even though,
+    by construction, that difference is itself under `margin`) -- a real, if
+    marginal, quality edge is never discarded once stability/cost are
+    themselves inconclusive. The leader is replaced by the pairwise winner and
+    the process repeats against the next candidate, so the final winner has
+    beaten every other candidate under this rule.
+
+    Returns (winning label, {label: {"mean": ..., "std": ..., "cost": ..., "n": ...}}).
+    """
+    stats: dict[str, dict] = {}
+    for label, (prefix, base) in candidates.items():
+        per_seed = meanq_per_seed(prefix, base, use_sf=use_sf)
+        values = [v for v in per_seed if v is not None]
+        if not values:
+            continue
+        mean = statistics.mean(values)
+        std = statistics.stdev(values) if len(values) > 1 else 0.0
+        stats[label] = {
+            "mean": mean, "std": std, "n": len(values),
+            "cost": relative_cost(prefix, base),
+        }
+    if not stats:
+        return None, {}
+
+    def pairwise_winner(a: str, b: str) -> str:
+        """Which of a, b wins under the point-scored rule, a vs b."""
+        mean_a, mean_b = stats[a]["mean"], stats[b]["mean"]
+        if abs(mean_a - mean_b) >= margin:
+            return a if mean_a > mean_b else b
+
+        std_a, std_b = stats[a]["std"], stats[b]["std"]
+        cost_a, cost_b = stats[a]["cost"], stats[b]["cost"]
+        points = {a: 0, b: 0}
+
+        std_max = max(std_a, std_b)
+        if std_max > 0:
+            if std_b - std_a > std_ratio * std_max:
+                points[a] += 1
+            elif std_a - std_b > std_ratio * std_max:
+                points[b] += 1
+
+        cost_max = max(cost_a, cost_b)
+        if cost_max > 0:
+            if cost_b - cost_a > cost_ratio * cost_max:
+                points[a] += 1
+            elif cost_a - cost_b > cost_ratio * cost_max:
+                points[b] += 1
+
+        if points[a] != points[b]:
+            return a if points[a] > points[b] else b
+        return a if mean_a >= mean_b else b
+
+    labels = list(stats)
+    winner = labels[0]
+    for label in labels[1:]:
+        winner = pairwise_winner(winner, label)
+    return winner, stats
+
+
 def decision_table(candidates: dict[str, tuple[str, str]], *, title: str,
                    use_sf: bool = False, top: Optional[int] = None) -> str:
     """Render a MeanQ-ranked markdown decision table for one model+language.

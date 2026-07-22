@@ -58,7 +58,9 @@ def load_generation_model(
 ):
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=trust_remote_code)
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_name, trust_remote_code=trust_remote_code, fix_mistral_regex=True,
+    )
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
     model = AutoModelForCausalLM.from_pretrained(
@@ -97,8 +99,24 @@ def build_chat_prompt(
 
 
 def strip_thinking_text(text: str) -> str:
+    """Remove a model's reasoning/thinking trace from its raw output, covering
+    both bracket conventions used in this project: Qwen3.5's <think>...</think>
+    and Mistral/Ministral Reasoning's [THINK]...[/THINK] (see
+    mistral_reasoning_parser.py in vLLM, which documents the same convention).
+
+    This has to be done here, in Python, on the actual generated text: vLLM's
+    engine-level `reasoning_parser` kwarg (passed to load_vllm_model) only
+    populates a separate `.reasoning_content` field on vLLM's OpenAI-compatible
+    SERVER API responses -- CompletionOutput, what LLM.generate() actually
+    returns (the interface this project's whole vLLM generation path uses,
+    scripts/run_generation_experiment.py and run_reasoning_pipeline.py alike),
+    has no such field, so the engine kwarg is silently inert for every call
+    site in this codebase and the raw trace stays embedded in .text unless
+    stripped here."""
     text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL | re.IGNORECASE)
     text = re.sub(r"</?think>", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\[THINK\].*?\[/THINK\]", "", text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r"\[/?THINK\]", "", text, flags=re.IGNORECASE)
     return text.strip()
 
 

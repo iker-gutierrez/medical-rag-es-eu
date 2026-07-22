@@ -14,7 +14,7 @@
   "min_p": 0.05,
   "presence_penalty": 0.1,
   "trust_remote_code": true,
-  "retrieval_index": "models/retrieval/sns1064_casimedicos_train_multilingual_e5_large",
+  "retrieval_index": "models/retrieval/sns1064_casimedicos_full_multilingual_e5_large",
   "retrieval_top_k": 15,
   "reranker_model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
   "reranker_top_k": 5,

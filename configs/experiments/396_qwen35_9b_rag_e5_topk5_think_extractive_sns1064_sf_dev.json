@@ -11,7 +11,7 @@
   "trust_remote_code": true,
   "max_new_tokens": 1024,
   "feedback_max_new_tokens": 512,
-  "retrieval_index": "models/retrieval/sns1064_train_multilingual_e5_large",
+  "retrieval_index": "models/retrieval/sns1064_full_multilingual_e5_large",
   "retrieval_top_k": 5,
   "top_p": 0.95,
   "top_k": 20,

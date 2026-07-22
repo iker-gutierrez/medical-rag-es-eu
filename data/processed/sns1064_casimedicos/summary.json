@@ -1,26 +1,26 @@
 {
   "name": "sns1064_casimedicos",
   "description": "Amplified Spanish QA dataset: SNS1064 plus CasiMedicos.",
-  "num_records": 1617,
+  "num_records": 1686,
   "sources": {
     "SNS1064": 1064,
-    "CasiMedicos": 553
+    "CasiMedicos": 622
   },
   "splits": {
-    "train": 1232,
-    "test": 224,
-    "dev": 161
+    "train": 1310,
+    "test": 250,
+    "dev": 126
   },
   "split_by_source": {
     "CasiMedicos": {
-      "train": 381,
-      "dev": 55,
-      "test": 117
+      "train": 434,
+      "dev": 63,
+      "test": 125
     },
     "SNS1064": {
-      "train": 851,
-      "test": 107,
-      "dev": 106
+      "train": 876,
+      "test": 125,
+      "dev": 63
     }
   },
   "inputs": {

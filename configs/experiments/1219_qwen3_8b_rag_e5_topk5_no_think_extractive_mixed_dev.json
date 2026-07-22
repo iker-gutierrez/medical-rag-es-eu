@@ -14,6 +14,6 @@
   "min_p": 0,
   "presence_penalty": 1.5,
   "trust_remote_code": true,
-  "retrieval_index": "models/retrieval/sns1064_casimedicos_train_multilingual_e5_large",
+  "retrieval_index": "models/retrieval/sns1064_casimedicos_full_multilingual_e5_large",
   "retrieval_top_k": 5
 }

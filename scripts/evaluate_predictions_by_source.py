@@ -35,23 +35,36 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--semantic-model", default="")
     parser.add_argument("--bertscore-model", default="bert-base-multilingual-cased")
     parser.add_argument("--bertscore-lang", default="es")
+    parser.add_argument(
+        "--bertscore-device",
+        default=None,
+        help="Device for BERTScore, e.g. 'cuda:0'. Defaults to bert_score's own "
+        "auto-detection when omitted.",
+    )
     return parser.parse_args()
 
 
-def run_eval(predictions_path: Path, output_path: Path, semantic_model: str, bertscore_model: str, bertscore_lang: str) -> None:
+def run_eval(
+    predictions_path: Path,
+    output_path: Path,
+    semantic_model: str,
+    bertscore_model: str,
+    bertscore_lang: str,
+    bertscore_device: "str | None" = None,
+) -> None:
     import subprocess
 
-    subprocess.run(
-        [
-            sys.executable, "scripts/evaluate_predictions.py",
-            "--predictions", str(predictions_path),
-            "--output", str(output_path),
-            "--semantic-model", semantic_model,
-            "--bertscore-model", bertscore_model,
-            "--bertscore-lang", bertscore_lang,
-        ],
-        cwd=ROOT, check=True,
-    )
+    command = [
+        sys.executable, "scripts/evaluate_predictions.py",
+        "--predictions", str(predictions_path),
+        "--output", str(output_path),
+        "--semantic-model", semantic_model,
+        "--bertscore-model", bertscore_model,
+        "--bertscore-lang", bertscore_lang,
+    ]
+    if bertscore_device:
+        command.extend(["--bertscore-device", bertscore_device])
+    subprocess.run(command, cwd=ROOT, check=True)
 
 
 def _is_stale(output_path: Path, predictions_path: Path) -> bool:
@@ -73,7 +86,10 @@ def main() -> None:
 
     if _is_stale(output_path, predictions_path):
         print(f"[eval-by-source] full mixed set -> {output_path}")
-        run_eval(predictions_path, output_path, args.semantic_model, args.bertscore_model, args.bertscore_lang)
+        run_eval(
+            predictions_path, output_path, args.semantic_model, args.bertscore_model,
+            args.bertscore_lang, args.bertscore_device,
+        )
     else:
         print(f"[eval-by-source] SKIP (up to date): {output_path}")
 
@@ -97,7 +113,10 @@ def main() -> None:
             tmp_meta.write_text(real_meta.read_text(encoding="utf-8"), encoding="utf-8")
         print(f"[eval-by-source] {prefix} subset ({len(subset)} records) -> {subset_output}")
         try:
-            run_eval(tmp_path, subset_output, args.semantic_model, args.bertscore_model, args.bertscore_lang)
+            run_eval(
+                tmp_path, subset_output, args.semantic_model, args.bertscore_model,
+                args.bertscore_lang, args.bertscore_device,
+            )
         finally:
             tmp_path.unlink(missing_ok=True)
             tmp_meta.unlink(missing_ok=True)

@@ -100,6 +100,7 @@ def score_text_pairs_with_bert(
     model_name: str,
     batch_size: int = 16,
     lang: str = "es",
+    device: Optional[str] = None,
 ) -> list[float]:
     from bert_score import score
 
@@ -118,6 +119,7 @@ def score_text_pairs_with_bert(
             batch_size=batch_size,
             rescale_with_baseline=False,
             verbose=False,
+            device=device,
         )
         for idx, value in zip(valid_indices, f1.tolist()):
             scores[idx] = float(value)
@@ -130,6 +132,7 @@ def bertscore_f1(
     model_name: str,
     batch_size: int = 16,
     lang: str = "es",
+    device: Optional[str] = None,
 ) -> list[float]:
     return score_text_pairs_with_bert(
         predictions,
@@ -137,6 +140,7 @@ def bertscore_f1(
         model_name=model_name,
         batch_size=batch_size,
         lang=lang,
+        device=device,
     )
 
 
@@ -386,6 +390,7 @@ def evaluate_records(
     bertscore_model: Optional[str] = None,
     bertscore_batch_size: int = 16,
     bertscore_lang: str = "es",
+    bertscore_device: Optional[str] = None,
     enable_ragas: bool = False,
 ) -> dict[str, Any]:
     reference_section_values = [reference_sections(record) for record in records]
@@ -450,6 +455,7 @@ def evaluate_records(
                         model_name=bertscore_model,
                         batch_size=bertscore_batch_size,
                         lang=bertscore_lang,
+                        device=bertscore_device,
                     )
             except Exception as exc:  # pragma: no cover - optional dependency/model.
                 prefix = f"{warning_prefix} " if warning_prefix else ""

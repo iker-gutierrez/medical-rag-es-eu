@@ -9,7 +9,7 @@
   "self_feedback": false,
   "max_new_tokens": 2048,
   "temperature": 0.6,
-  "retrieval_index": "models/retrieval/casimedicos_eu_train_multilingual_e5_large",
+  "retrieval_index": "models/retrieval/casimedicos_eu_full_multilingual_e5_large",
   "retrieval_top_k": 1,
   "top_p": 0.9,
   "num_runs": 3

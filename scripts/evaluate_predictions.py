@@ -36,6 +36,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--bertscore-batch-size", type=int, default=16)
     parser.add_argument("--bertscore-lang", default="es")
+    parser.add_argument(
+        "--bertscore-device",
+        default=None,
+        help="Device for BERTScore, e.g. 'cuda:0'. Defaults to bert_score's own "
+        "auto-detection (CUDA if visible, else CPU) when omitted.",
+    )
     parser.add_argument("--ragas", action="store_true", help="Request RAGAS metrics if configured.")
     return parser.parse_args()
 
@@ -92,6 +98,7 @@ def run(args: argparse.Namespace) -> None:
         bertscore_model=args.bertscore_model or None,
         bertscore_batch_size=args.bertscore_batch_size,
         bertscore_lang=args.bertscore_lang,
+        bertscore_device=args.bertscore_device,
         enable_ragas=args.ragas,
     )
     write_metrics(metrics, args.output)

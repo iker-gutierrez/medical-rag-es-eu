@@ -128,15 +128,16 @@ DOMAIN_RENAME = {
 # filenamed, for all three models -- matches each model's own pin, no rerun
 # needed.
 #
-# EU (configs/experiments/1049_llama31_8b_rag_sns1064_...,
-# 1060_latxa_..._sns1064_...): rerun against the corrected corpus with
-# MC-accuracy correctly included in MeanQ (sec:translation-artefact), both
-# models' stage-A/B winner moved to retrieve top3 -- staged_ablation_runner.py's
-# run_model() rewired rows 9-10 to retrieval_top_k=3 accordingly before this
-# rerun (confirmed directly in both configs' JSON, no reranking either).
+# EU (full staged rerun against the rebuilt CasiMedicos-Exp/SNS-1064 splits
+# and rebuilt retrieval indices, 2026-07-21): both Llama's and Latxa's domain
+# rows were run against "retrieve top 3" as their base (dense-only, no
+# reranking) -- see FORCED_REFERENCES below for the per-model rationale.
 DOMAIN_BASE_LABEL: dict[str, dict[str, str]] = {
-    "ES": {"Mistral": "rerank top 5", "Qwen no-think": "rerank top 5",
-           "Qwen think": "rerank top 5"},
+    # Qwen think's domain rows (1278/1279) were rebuilt with few_shot_k=3 added
+    # on top of rerank top 5, i.e. row 8's "3-shot + rerank top 5" base, per
+    # explicit request; Qwen no-think's domain rows (1136/1137) were not
+    # touched and remain on their original rerank-top-5 base.
+    "ES": {"Qwen no-think": "rerank top 5", "Qwen think": "3-shot + rerank top 5"},
     "EU": {"Llama": "retrieve top 3", "Latxa": "retrieve top 3"},
 }
 
@@ -153,6 +154,14 @@ def display_label(label: str, best_config: Optional[str], model: str) -> str:
         # included). Substitute the actual pinned config so the table never
         # names a RAG setting the row wasn't actually run with.
         config_text = best_config.get(model) if isinstance(best_config, dict) else best_config
+        # Guard against self-substitution: when THIS row's own literal label
+        # (e.g. row 8, carried forward as the domain stage's reference) is
+        # itself "3-shot + rerank top 5" and that also happens to be the
+        # pinned config_text (ES_STAGE_REFERENCE_OVERRIDE's domain entry),
+        # naively prepending would double the prefix ("3-shot + 3-shot +
+        # rerank top 5"). Row 8 already names its own base; leave it as-is.
+        if config_text == label:
+            return label
         return f"3-shot + {config_text}" if config_text else label
     return label
 
@@ -180,57 +189,128 @@ STAGE_POOL = {
 # model, except ES's Qwen no-think/think tie (see below, still two pins because
 # they're a genuine unresolved trade-off, not a per-model split).
 #
-# EU (rerun against the corrected translation corpus, sec:translation-artefact,
-# with MC-accuracy correctly included in MeanQ via patch_mc_accuracy.py -- an
-# earlier pass without MC-acc had picked rerank5 for both models; MC-acc
-# swings the choice to retrieve top3 for both):
-#   Llama-3.1-8B -> retrieve top 3 (49.93+/-1.59), the highest MeanQ of the six
-#   stage-A configs (next: retrieve top 5 at 49.85+/-1.75, rerank5 at
-#   49.62+/-1.75 -- within a fraction of a point, but top3 both wins and is
-#   the cheaper retrieval depth of the two).
-#   Latxa-8B -> retrieve top 3 (51.17+/-0.70), also the highest MeanQ of its six
-#   (next: rerank5 at 50.93+/-1.11, retrieve top 5 at 50.62+/-0.79), with the
-#   tightest std of the three -- a clean win, and both models land on the same
-#   label this time (unlike the prior pin, which split Llama at top 5 vs
-#   Latxa at top 1).
-#   Since both models share retrieve top3 now, row 8 (few-shot + best RAG)
-#   and rows 9-10 (domain restriction) are both rewired to top_k=3 before
-#   their own rerun -- see staged_ablation_runner.py's run_model(), which
-#   applies this automatically from best_by_meanq() rather than needing a
-#   manual rewire step.
+# EU (full staged rerun against the rebuilt CasiMedicos-Exp/SNS-1064 splits and
+# rebuilt retrieval indices, 2026-07-21). Chosen by scripts/meanq.py's
+# best_by_meanq_robust(): highest mean MeanQ, UNLESS a candidate within 0.5
+# MeanQ of the leader has meaningfully lower std (<=0.6x the leader's) or
+# meaningfully lower cost (<=0.6x, cost = retrieval_top_k, +5 if reranked) --
+# the reader's explicit variance/cost-aware selection rule, not a plain MeanQ
+# argmax. This is the reference CARRIED FORWARD into stage 3 (few-shot) and
+# stage 4 (domain) -- those rows were actually generated against this base:
+#   Llama-3.1-8B -> retrieve top 3, no self-feedback (49.01+/-1.71) -- the
+#   outright highest MeanQ Llama reaches across every retrieval AND rerank
+#   candidate (next: retrieve top1 46.81+/-0.84, retrieve top5 46.61+/-1.62,
+#   rerank5 46.24+/-1.01, rerank1 43.88+/-0.85, rerank3 43.12+/-1.00). A clear
+#   leader by margin alone; the std/cost tiebreak never needs to engage.
+#   Latxa-8B -> retrieve top 3, no self-feedback (47.28+/-0.73) -- narrowly
+#   beats the next candidate, rerank top 3 (46.81+/-1.03), by only 0.47 MeanQ,
+#   inside the 0.5-point margin. Std alone would NOT have triggered a
+#   stability override (0.73 vs 0.6x1.03=0.62), but retrieve top 3's cost
+#   (3, dense-only) is well under 0.6x rerank top 3's cost (20, reranked),
+#   so the cost tiebreak decides it: cheap dense retrieval over an expensive
+#   reranked config that isn't reliably better. (Other candidates, for
+#   completeness: retrieve top5 45.63+/-0.51, rerank5 45.26+/-2.06, retrieve
+#   top1 41.72+/-0.59, rerank1 40.22+/-0.61.)
+#   Both models land on the SAME label this rerun (retrieve top 3) -- unlike
+#   the previous rerun, where they pinned at different labels (rerank top 5 /
+#   retrieve top 5) and each pin's own stage had to be derived independently
+#   (see pin_own_index() in build_language(), still needed in general even
+#   though it resolves to the same stage for both here).
 #
-# ES: all three models' own best config is already "rerank top 5" (Mistral
-# 49.15+/-1.21 vs 2nd-best retrieve-top1 48.61+/-1.42; Qwen no-think 69.79+/-0.89 vs
-# rerank3 66.93+/-1.18; Qwen think 71.34+/-0.38 vs rerank3 70.41+/-0.61) -- so
-# per-model selection changes nothing structurally for ES; it's the SAME label
-# for all three models. What's still unresolved is Qwen no-think vs think AT
-# that shared label: the 1.55-point gap is real (bigger than either std), so
-# there's no clean single winner -- no-think is the efficient choice (~2.9x
-# less latency, ~3.5x fewer tokens for that gain, matching the reasoning-
-# pipeline section's own no-think choice -- scripts/write_reasoning_latex_
-# table.py's ES_ROWS comment), but think's quality edge is real enough that
-# BOTH are kept as reference rows so the reader can judge the trade-off
-# directly. Mistral's own pin is single (rerank top 5, no competing candidate).
+# ES (updated 2026-07-21 for the rebuilt data/indices; Mistral-7B-Instruct-v0.3
+# dropped from the roster, superseded by the Ministral-3-8B models, whose own
+# staged rerun was still in progress as of this update and is not yet reflected
+# here): Qwen no-think's own best config is confirmed "rerank top 5" against
+# fresh predictions (best_by_meanq_robust: 69.15+/-0.72 vs 2nd-best rerank3
+# 67.12+/-1.55, well outside the variance/cost margin -- a clean win, no
+# tiebreak needed). Qwen think's pin below (rerank top 5, 71.34+/-0.38 vs
+# rerank3 70.41+/-0.61) is CARRIED FORWARD from its pre-rebuild run -- its own
+# staged rerun against the rebuilt data was still running as of this update and
+# has not yet been re-verified; re-check with best_by_meanq_robust once it
+# completes and update this pin (and the MeanQ figures in the tie-break note
+# below) if the winning label or numbers change.
 FORCED_REFERENCES: dict[str, list[tuple[str, str]]] = {
     "EU": [("retrieve top 3", "Llama"), ("retrieve top 3", "Latxa")],
-    "ES": [("rerank top 5", "Mistral"),
-           ("rerank top 5", "Qwen no-think"), ("rerank top 5", "Qwen think")],
+    "ES": [("retrieve top 1", "Qwen no-think"), ("retrieve top 5", "Qwen think")],
 }
-# The stage where each language's pinned label(s) are members of that stage's OWN
-# `labels` (EU: "retrieval", where retrieve top 1/top 5 are among the four rows; ES:
-# "rerank", where "rerank top 5" is one of the three rows) -- that stage does NOT
-# get the pin(s) prepended as a carried-forward reference (they're already there,
-# as their own row(s); prepending would duplicate them). Every LATER stage does.
-PIN_OWN_STAGE = {"EU": "retrieval", "ES": "rerank"}
+
+# ES manual override, by explicit user request: rather than one reference per
+# model carried unchanged through every later stage (FORCED_REFERENCES's
+# default semantics), BOTH models' OWN reference is updated stage by stage --
+# each later table's "best system built so far" is a different, more recent
+# row per model. This does not reflect an automatic MeanQ selection at every
+# entry (see best_by_meanq_robust in meanq.py for the actual automatic pick
+# at each stage); several entries are deliberate manual choices, overriding
+# FORCED_REFERENCES's stage-1 entries for every stage from "rerank" onward.
+#
+# Qwen no-think: stage-1's own pin was retrieve top 1 (65.76 MeanQ, that
+# stage's own winner), but from stage 2 onward the reference is rerank top 5
+# (6a, 69.15 MeanQ) -- Qwen no-think's actual best-so-far row once reranking
+# is introduced, clearly ahead of retrieve top 1, per explicit user request
+# (previously left at retrieve top 1 through an oversight; corrected here).
+#
+# Keyed (stage_slug) -> the (label, model) pairs that REPLACE, not add to,
+# the reference list computed from FORCED_REFERENCES for that stage. Stage
+# "retrieval" itself is absent (no override there: FORCED_REFERENCES's own
+# pin-not-yet-reached logic already shows no carried-forward reference in a
+# pin's own stage).
+ES_STAGE_REFERENCE_OVERRIDE: dict[str, list[tuple[str, str]]] = {
+    "rerank": [("rerank top 5", "Qwen no-think"), ("rerank top 5", "Qwen think")],
+    "fewshot": [("rerank top 5", "Qwen no-think"), ("rerank top 5", "Qwen think")],
+    "domain": [("rerank top 5", "Qwen no-think"), ("3-shot + rerank top 5", "Qwen think")],
+}
+
+# Which SF state to highlight for a manually-forced pin, when it differs from
+# the automatic higher-MeanQ choice best_sf_state() would make. Qwen think's
+# rerank-top-5 row (6b/6b') is one case: SF's MeanQ (72.24) is actually
+# marginally higher than noSF's (72.13), so the automatic rule would highlight
+# 6b', but the request was to highlight 6b (noSF) specifically and remove
+# 6b''s highlight -- both rows remain visible in the "rerank" stage's own
+# table (this is not best_sf_only, which would hide one state entirely), only
+# which one gets \rowcolor{pinnedrow} and the bold MeanQ changes. Same
+# reasoning applies to Qwen think's stage-1 pin (3b/3b'): SF's raw MeanQ
+# (69.93) edges out noSF's (69.90), but the request explicitly said
+# "bluehighlight ... 3b", so noSF is forced here too, in the "retrieval"
+# stage itself (this stage's own pin, not a later carried-forward reference).
+# Keyed (stage_slug, label, model) -> False means noSF, True means SF. Note
+# the SAME (label, model) pin needs an entry PER STAGE it's rendered in: its
+# own stage (e.g. "rerank" for 6b/6b') AND every later stage where it appears
+# as the carried-forward reference row (e.g. "fewshot", where stage 3's table
+# shows Qwen think's rerank-top-5 reference row and must also force noSF
+# there, or best_sf_state()'s automatic pick would silently reassert 6b').
+ES_PIN_SF_OVERRIDE: dict[tuple[str, str, str], bool] = {
+    ("retrieval", "retrieve top 5", "Qwen think"): False,
+    ("rerank", "rerank top 5", "Qwen think"): False,
+    ("fewshot", "rerank top 5", "Qwen think"): False,
+}
 # Which (label, model) pairs, if any, get the tie-break caption note and MeanQ
-# highlight at their pin's own stage -- ES's Qwen no-think/think split is a
-# genuine unresolved trade-off worth explaining; every other pin (EU's two,
-# ES's Mistral) is a clean single winner with nothing to explain beyond the
-# normal per-metric bolding.
-TIE_BREAK_PAIRS: dict[str, list[tuple[str, str]]] = {
-    "ES": [("rerank top 5", "Qwen no-think"), ("rerank top 5", "Qwen think")],
+# highlight at their pin's own stage -- for a pair sharing ONE label between
+# two models, worth explaining as a real trade-off. Empty now: ES's stage-1
+# pins are two DIFFERENT labels (retrieve top 1 for Qwen no-think, retrieve
+# top 5 for Qwen think, a manual per-model choice -- see FORCED_REFERENCES),
+# not a same-label split, so the tie-break framing this mechanism renders no
+# longer applies; EU's two pins were already a clean single winner each with
+# nothing to explain. Kept as a mechanism (not deleted) in case a future
+# rerun reintroduces a genuine same-label two-model split.
+TIE_BREAK_PAIRS: dict[str, list[tuple[str, str]]] = {}
+TIE_BREAK_STAGE: dict[str, str] = {}
+
+# Extra manual blue-highlights, scoped to ONE stage rather than carried
+# forward as a reference row everywhere (unlike FORCED_REFERENCES/pins).
+# Keyed (lang, stage_slug) -> set of (label, model) pairs. Used when a model's
+# own best-in-stage-1 row differs from the label carried forward into later
+# stages (e.g. previously, EU's Llama: stage 1's own winner was retrieve top 5,
+# but the carried-forward pin was rerank top 5 -- both needed separate
+# highlighting).
+#
+# ES's "rerank" entry: both Qwen think's rerank-top-5 row (6b) and Qwen
+# no-think's rerank-top-5 row (6a) are the winners carried forward into stage
+# 3 (fewshot) via ES_STAGE_REFERENCE_OVERRIDE, but that carry-forward only
+# highlights the row in LATER stages' tables -- within stage 2's OWN table,
+# both 6a and 6b need their own explicit highlight too, per request.
+EXTRA_PIN_ROWS: dict[tuple[str, str], frozenset[tuple[str, str]]] = {
+    ("ES", "rerank"): frozenset({("rerank top 5", "Qwen think"), ("rerank top 5", "Qwen no-think")}),
 }
-TIE_BREAK_STAGE = {"ES": "rerank"}
 
 
 def esc(text: str) -> str:
@@ -380,7 +460,7 @@ def collect(prefix: str, base: str, suffix: str, use_sf: bool) -> Optional[dict]
 # ── models per language ───────────────────────────────────────────────────────
 # Each EXPERIMENTS row is (label, id, base, id, base, ...) -- one (id, base) pair
 # per model, in the order the decision tables report them.
-ES_MODELS = ["Mistral", "Qwen no-think", "Qwen think"]
+ES_MODELS = ["Qwen no-think", "Qwen think"]
 EU_MODELS = ["Llama", "Latxa"]
 
 
@@ -439,6 +519,7 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
                restrict: Optional[dict[str, frozenset[str]]] = None,
                best_sf_only: frozenset[tuple[str, str]] = frozenset(),
                pin_rows: frozenset[tuple[str, str]] = frozenset(),
+               pin_sf_override: Optional[dict[tuple[str, str], bool]] = None,
                color_pins: bool = True,
                separator_after: int = 0) -> list[str]:
     """`labels` is the row labels to show, in order. `restrict`, if given, maps a
@@ -556,13 +637,24 @@ def emit_table(experiments, models, labels, *, caption, short, tag, suffix,
         for model in models:
             if allowed_models and model not in allowed_models:
                 continue
-            keep_sf = best_sf_state(nosf_rows.get(model), sf_rows.get(model)) if (label, model) in best_sf_only else None
+            if (label, model) in best_sf_only:
+                if (label, model) in (pin_sf_override or {}):
+                    keep_sf = pin_sf_override[(label, model)]
+                else:
+                    keep_sf = best_sf_state(nosf_rows.get(model), sf_rows.get(model))
+            else:
+                keep_sf = None
             # Which SF state to paint blue for a pinned (label, model): whichever
             # has the higher MeanQ, same rule as best_sf_only -- but computed
             # independently of it, since a pin's OWN stage still shows BOTH SF
             # states (best_sf_only is empty there) while only one of them should
             # get the row highlight.
-            pin_sf = best_sf_state(nosf_rows.get(model), sf_rows.get(model)) if (label, model) in pin_rows else None
+            if (label, model) in (pin_sf_override or {}):
+                pin_sf = pin_sf_override[(label, model)]
+            elif (label, model) in pin_rows:
+                pin_sf = best_sf_state(nosf_rows.get(model), sf_rows.get(model))
+            else:
+                pin_sf = None
             for use_sf, rows_by_model in ((False, nosf_rows), (True, sf_rows)):
                 if keep_sf is not None and use_sf != keep_sf:
                     continue
@@ -679,24 +771,38 @@ def build_language(experiments, models, lang: str, dev_slug: str, suffix: str, c
                 )
 
     stage_slugs = [s[0] for s in STAGES]
-    pin_own_stage = PIN_OWN_STAGE.get(lang)
-    pin_own_index = stage_slugs.index(pin_own_stage) if pin_own_stage in stage_slugs else -1
+    stage_labels = {s[0]: s[3] for s in STAGES}
+    # Each pin's own stage is derived, not hand-specified: whichever stage's
+    # OWN `labels` contains that pin's label. Pins are no longer required to
+    # share one "own stage" per language -- e.g. EU can pin Llama at a rerank
+    # label and Latxa at a retrieval label simultaneously; each is only
+    # prepended as a carried-forward reference from ITS OWN stage onward.
+    def pin_own_index(pin_label: str) -> int:
+        for idx, slug in enumerate(stage_slugs):
+            if pin_label in stage_labels[slug]:
+                return idx
+        return -1
     for stage_index, (slug, stem, question, labels) in enumerate(STAGES):
-        is_pin_own_stage = slug == pin_own_stage
         is_tie_break_stage = slug == tie_break_stage
-        # The pins only apply from the pin's own stage ONWARD (stage_index >
-        # pin_own_index) -- stages BEFORE it (e.g. ES's "retrieval", which comes
-        # before "rerank", the pins' own stage) haven't reached the point in the
-        # pipeline where the pinned config exists yet, so nothing is prepended
-        # there either. At the pin's own stage, the pinned label(s) are already
-        # members of that stage's OWN `labels` -- prepending them there would
-        # duplicate the rows (ES: "rerank top 5" is both a pin and one of
-        # "rerank"'s own labels; EU: "retrieve top 1"/"retrieve top 5" are among
-        # "retrieval"'s own labels) -- so no reference is prepended there either,
-        # and the stage shows every SF state of its own rows (best_sf_only left
-        # empty) so the comparison the pins are drawn from is visible, not
-        # asserted.
-        reference = [] if (stage_index <= pin_own_index or not pins) else pins
+        # A pin only applies (is prepended as a carried-forward reference) from
+        # ITS OWN stage onward -- at its own stage, the pinned label is already
+        # one of that stage's own rows, so prepending it would duplicate it;
+        # every LATER stage gets it prepended, since the pipeline has by then
+        # moved past the point where that config was chosen. Each pin is
+        # checked independently, since different pins can now have different
+        # own stages.
+        reference = [(lbl, mdl) for lbl, mdl in pins if stage_index > pin_own_index(lbl)]
+        if lang == "ES" and slug in ES_STAGE_REFERENCE_OVERRIDE:
+            # Same "own stage" guard as the static `pins` above: an override
+            # entry whose label belongs to THIS stage (e.g. Qwen no-think's
+            # rerank-stage override is itself "rerank top 5", a rerank-stage
+            # row) is already one of this stage's own comparison rows, so
+            # showing it again as a carried-forward reference would duplicate
+            # it. Only override entries whose own stage is earlier are kept.
+            reference = [
+                (lbl, mdl) for lbl, mdl in ES_STAGE_REFERENCE_OVERRIDE[slug]
+                if stage_index > pin_own_index(lbl)
+            ]
         ref_labels = sorted({label for label, _ in reference})
         ref_items = [f"{lbl}, {mdl}" for lbl, mdl in reference]
         if len(ref_items) <= 2:
@@ -732,16 +838,41 @@ def build_language(experiments, models, lang: str, dev_slug: str, suffix: str, c
         # whichever reference labels happen to be pinned -- the domain
         # experiments don't move when the pinned list changes (see its comment).
         domain_base = DOMAIN_BASE_LABEL.get(lang) if slug == "domain" else None
+        # Per-model pinned-label dict for display_label()'s "3-shot + <base>"
+        # substitution: NOT ref_labels[0] (which would collapse to None
+        # whenever the pins span more than one distinct label -- e.g. a
+        # previous EU rerun had Llama pinned at rerank top 5 while Latxa was
+        # pinned at retrieve top 5; both EU pins currently share one label,
+        # retrieve top 3, but the per-model dict is kept general rather than
+        # assuming that stays true) -- built the same way DOMAIN_BASE_LABEL
+        # already is, one label per model, so each model's row 8 names the
+        # RAG base IT was actually built on.
+        fewshot_base = {mdl: lbl for lbl, mdl in reference} if reference else None
+        extra_pins = EXTRA_PIN_ROWS.get((lang, slug), frozenset())
+        # pin_rows drives the blue \rowcolor{pinnedrow} highlight. It normally
+        # tracks the same static `pins` used to compute `reference` above, but
+        # when ES_STAGE_REFERENCE_OVERRIDE has replaced `reference` for this
+        # stage, the highlight must track the OVERRIDE too, or the blue-marked
+        # row and the row actually shown/carried-forward would disagree.
+        this_stage_pins = (
+            ES_STAGE_REFERENCE_OVERRIDE[slug] if (lang == "ES" and slug in ES_STAGE_REFERENCE_OVERRIDE)
+            else pins
+        )
+        pin_sf_override = {
+            (lbl, mdl): sf for (stg, lbl, mdl), sf in ES_PIN_SF_OVERRIDE.items()
+            if lang == "ES" and stg == slug
+        }
         out = OUT_DIR / f"table_{lang.lower()}_{dev_slug}_{slug}.tex"
         out.write_text("\n".join(emit_table(
             experiments, models, shown,
             caption=caption, short=f"{stem} ({lang}, {dev_slug})",
             tag=f"{lang.lower()}-{dev_slug}-{slug}", suffix=suffix,
-            best_config=domain_base if slug == "domain" else (ref_labels[0] if len(ref_labels) == 1 else None),
+            best_config=domain_base if slug == "domain" else fewshot_base,
             restrict=restrict or None,
             highlight_rows=highlight_rows if is_tie_break_stage else frozenset(),
             best_sf_only=stage_best_sf_only,
-            pin_rows=frozenset(pins),
+            pin_rows=frozenset(this_stage_pins) | extra_pins,
+            pin_sf_override=pin_sf_override or None,
             color_pins=color_pins,
             separator_after=len(ref_labels) if reference else 0,
         )) + "\n")

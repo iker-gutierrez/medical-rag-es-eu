@@ -103,6 +103,11 @@ def build_command(
         "max_model_len": "--max-model-len",
         "gpu_memory_utilization": "--gpu-memory-utilization",
         "tensor_parallel_size": "--tensor-parallel-size",
+        "repetition_detection_max_pattern": "--repetition-detection-max-pattern",
+        "repetition_detection_min_pattern": "--repetition-detection-min-pattern",
+        "repetition_detection_min_count": "--repetition-detection-min-count",
+        "max_truncation_retries": "--max-truncation-retries",
+        "reasoning_parser": "--reasoning-parser",
     }
     for key, flag in optional_args.items():
         add_optional_arg(command, config, key, flag)
@@ -110,6 +115,7 @@ def build_command(
     add_bool_arg(command, config, "think", "--think")
     add_bool_arg(command, config, "self_feedback", "--self-feedback")
     add_bool_arg(command, config, "trust_remote_code", "--trust-remote-code")
+    add_bool_arg(command, config, "log_retrieval_leak", "--log-retrieval-leak")
     if dry_run or config.get("dry_run"):
         command.append("--dry-run")
     if save_prompts or config.get("save_prompts"):

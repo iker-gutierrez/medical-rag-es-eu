@@ -10,7 +10,7 @@
   "num_runs": 1,
   "temperature": 0.7,
   "top_p": 0.95,
-  "retrieval_index": "models/retrieval/sns1064_casimedicos_train_multilingual_e5_large",
+  "retrieval_index": "models/retrieval/sns1064_casimedicos_full_multilingual_e5_large",
   "retrieval_top_k": 3,
   "seed": 44,
   "feedback_max_new_tokens": 8000

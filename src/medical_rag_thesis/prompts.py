@@ -4,11 +4,33 @@ import re
 from typing import Any, Mapping, Optional, Sequence
 
 
-SYSTEM_PROMPT_ES = "Eres un experto clínico."
+SYSTEM_PROMPT_ES = "Eres un experto médico."
 
-SYSTEM_PROMPT_EU = "Aditu klinikoa zara."
+SYSTEM_PROMPT_EU = "Aditu medikoa zara."
 
 SYSTEM_PROMPTS = {"es": SYSTEM_PROMPT_ES, "eu": SYSTEM_PROMPT_EU}
+
+# mistralai/Ministral-3-8B-Reasoning-2512's own recommended system prompt
+# (its SYSTEM_PROMPT.txt / chat_template.jinja default), verbatim. The model
+# card recommends appending it to a custom system prompt rather than
+# replacing either one; since this project builds prompts as a flat text
+# string rather than through the tokenizer's chat template (see
+# generation.build_chat_prompt, which only reaches for apply_chat_template
+# when a system message is present -- passing OUR OWN system message means
+# the template's own default reasoning-instructions text, which only fires
+# when no system role is supplied, never appears at all unless appended
+# explicitly here), this has to be added by hand for that model specifically.
+MINISTRAL_REASONING_SYSTEM_PROMPT = (
+    "# HOW YOU SHOULD THINK AND ANSWER\n\n"
+    "First draft your thinking process (inner monologue) until you arrive at a "
+    "response. Format your response using Markdown, and use LaTeX for any "
+    "mathematical equations. Write both your thoughts and the response in the "
+    "same language as the input.\n\n"
+    "Your thinking process must follow the template below:[THINK]Your thoughts "
+    "or/and draft, like working through an exercise on scratch paper. Be as "
+    "casual and as long as you want until you are confident to generate the "
+    "response to the user.[/THINK]Here, provide a self-contained response."
+)
 
 PROMPT_STYLES = ("extractive",)
 
@@ -100,6 +122,35 @@ def build_user_prompt(
     return build_extractive_user_prompt(record, examples=examples, documents=documents)
 
 
+MC_FORMAT_RULE_ES = (
+    "- Si la pregunta tiene opciones de respuesta, en el apartado de \"Respuesta corta\" incluye "
+    "solo el índice de la opción elegida (ej. \"3.\") y el texto de esa opción. Si la pregunta no "
+    "tiene opciones de respuesta, en el apartado de \"Respuesta corta\" responde directamente con "
+    "tus palabras."
+)
+MC_FORMAT_RULE_EU = (
+    "- Galderak erantzun-aukerak baditu, \"Erantzun laburra\" atalean sartu soilik aukeratutako "
+    "aukeraren indizea (adib. \"3.\") eta aukera horren testua. Galderak erantzun-aukerarik ez badu, "
+    "\"Erantzun laburra\" atalean erantzun zuzenean zure hitzekin."
+)
+PLACEHOLDER_NOTE_ES = (
+    "Los símbolos < > delimitan marcadores de posición que especifican el tipo de contenido "
+    "esperado. En tu respuesta, sustituye esos marcadores de posición y sus símbolos "
+    "delimitadores por el contenido esperado."
+)
+PLACEHOLDER_NOTE_EU = (
+    "< > sinboloek espero den eduki-mota adierazten duten leku-markak mugatzen dituzte. Zure "
+    "erantzunean, ordezkatu leku-marka horiek eta haien muga-sinboloak espero den edukiarekin."
+)
+
+
+def short_answer_placeholder(record: Mapping[str, Any], language: str = "es") -> str:
+    has_options = bool(record.get("options"))
+    if language == "eu":
+        return "<aukeraren zenbakia. aukeraren testua>" if has_options else "<sortutako erantzun laburra>"
+    return "<número de opción. texto de opción>" if has_options else "<respuesta breve generada>"
+
+
 def build_extractive_user_prompt(
     record: Mapping[str, Any],
     *,
@@ -110,40 +161,52 @@ def build_extractive_user_prompt(
     has_context = bool(context_text)
     options = format_options(record)
     question = format_question(record).removeprefix("Pregunta: ").strip()
+    short_answer = short_answer_placeholder(record)
+    mc_format_rule = f"{MC_FORMAT_RULE_ES}\n" if options else ""
 
     if has_context:
         sections = [
-            "Tu tarea es responder usando la información del contexto recuperado, sin inventar datos.",
+            "Tu tarea es responder a la pregunta médica de forma justificada.",
             "Reglas:\n"
-            "- Basa tu respuesta en la información del contexto recuperado. NO añadas información externa. COPIA frases exactas cuando sea posible.\n"
-            "- Responde en español.\n"
-            "- Responde SIEMPRE en este formato:\n\n"
-            "Respuesta corta:\n"
-            "(texto extraído)\n\n"
-            "Evidencia:\n"
-            "(texto extraído)"
+            "- Basa tu respuesta en la información del contexto extraído. Puedes copiar frases exactas cuando el "
+            "contexto extraído esté directamente relacionado con la pregunta. Si el contexto extraído es "
+            "insuficiente para una respuesta completa, puedes combinar tu conocimiento médico con el "
+            "contexto extraído.\n"
+            "- NO inventes datos que no estén respaldados por el contexto extraído o por tu conocimiento "
+            "médico.\n"
+            f"{mc_format_rule}"
+            "- Responde en español."
         ]
     else:
         sections = [
-            "Tu tarea es responder la pregunta clínica de forma justificada.",
+            "Tu tarea es responder a la pregunta médica de forma justificada.",
             "Reglas:\n"
             "- Usa la información de la pregunta (y las opciones de respuesta, si las hay).\n"
-            "- Puedes apoyarte en conocimiento clínico general.\n"
-            "- NO inventes datos concretos que no puedas justificar.\n"
-            "- Responde en español.\n"
-            "- Responde SIEMPRE en este formato:\n\n"
-            "Respuesta corta:\n"
-            "(respuesta breve)\n\n"
-            "Evidencia:\n"
-            "(justificación)"
+            "- Apóyate en tu conocimiento médico.\n"
+            "- NO inventes datos que no puedas justificar con tu conocimiento médico.\n"
+            f"{mc_format_rule}"
+            "- Responde en español."
         ]
     if examples:
         sections.append("Usa estos ejemplos solo para aprender el formato de salida:\n\n" + format_examples(examples))
     if has_context:
-        sections.append("Contexto recuperado:\n" + context_text)
+        sections.append("Contexto extraído:\n" + context_text)
     sections.append("Pregunta:\n" + question)
     if options:
         sections.append("Opciones:\n" + options)
+    evidence_placeholder = (
+        "<evidencia basada en el contexto extraído y, si también lo has usado, en tu conocimiento médico>"
+        if has_context
+        else "<evidencia basada en tu conocimiento médico>"
+    )
+    sections.append(
+        "Responde en este formato, sin incluir texto fuera de los campos indicados:\n\n"
+        "Respuesta corta:\n"
+        f"{short_answer}\n\n"
+        "Evidencia:\n"
+        f"{evidence_placeholder}"
+    )
+    sections.append(PLACEHOLDER_NOTE_ES)
     return "\n\n".join(sections)
 
 
@@ -157,32 +220,31 @@ def build_extractive_user_prompt_eu(
     has_context = bool(context_text)
     options = format_options(record)
     question = format_question(record, language="eu").removeprefix("Galdera: ").strip()
+    short_answer = short_answer_placeholder(record, language="eu")
+    mc_format_rule = f"{MC_FORMAT_RULE_EU}\n" if options else ""
 
     if has_context:
         sections = [
-            "Zure zeregina errekuperatutako testuinguruko informazioa erabiliz erantzutea da, daturik asmatu gabe.",
+            "Zure ataza galdera medikoari modu justifikatuan erantzutea da.",
             "Arauak:\n"
-            "- Oinarritu erantzuna errekuperatutako testuinguruko informazioan. EZ gehitu kanpoko informaziorik. KOPIATU esaldi osoak posible denean.\n"
-            "- Erantzun euskaraz.\n"
-            "- Erantzun BETI honako formatuan:\n"
-            "Erantzun laburra:\n"
-            "(erauztitako testua)\n\n"
-            "Ebidentzia:\n"
-            "(erauztitako testua)"
+            "- Oinarritu erantzuna erauzitako testuinguruko informazioan. Kopiatu ditzakezu esaldi osoak "
+            "erauzitako testuingurua galderarekin zuzenki erlazionatuta dagoenean. Erauzitako "
+            "testuingurua erantzun oso baterako nahikoa ez bada, zure medikuntza-ezagutza erauzitako "
+            "testuinguruarekin konbina dezakezu.\n"
+            "- EZ asmatu erauzitako testuinguruan edo zure medikuntza-ezagutzan oinarrituta ez dagoen "
+            "daturik.\n"
+            f"{mc_format_rule}"
+            "- Erantzun euskaraz."
         ]
     else:
         sections = [
-            "Zure zeregina galdera klinikoa modu justifikatuan erantzutea da.",
+            "Zure ataza galdera medikoari modu justifikatuan erantzutea da.",
             "Arauak:\n"
             "- Erabili galderaren informazioa (eta erantzun-aukerak, egonez gero).\n"
-            "- Medikuntzako ezagutza orokorraz baliatu zaitezke.\n"
-            "- EZ asmatu justifika ezin duzun datu zehatzik.\n"
-            "- Erantzun euskaraz.\n"
-            "- Erantzun BETI honako formatuan:\n\n"
-            "Erantzun laburra:\n"
-            "(erantzun laburra)\n\n"
-            "Ebidentzia:\n"
-            "(ebidentzia edo justifikazioa)"
+            "- Baliatu zure medikuntza-ezagutzaz.\n"
+            "- EZ asmatu zure medikuntza-ezagutzarekin justifikatu ezin duzun daturik.\n"
+            f"{mc_format_rule}"
+            "- Erantzun euskaraz."
         ]
     if examples:
         sections.append(
@@ -190,10 +252,24 @@ def build_extractive_user_prompt_eu(
             + format_examples(examples, language="eu")
         )
     if has_context:
-        sections.append("Errekuperatutako testuingurua:\n" + context_text)
+        sections.append("Erauzitako testuingurua:\n" + context_text)
     sections.append("Galdera:\n" + question)
     if options:
         sections.append("Aukerak:\n" + options)
+    evidence_placeholder = (
+        "<erauzitako testuinguruan oinarritutako ebidentzia eta, erabili baduzu, zure "
+        "medikuntza-ezagutzan oinarritutakoa ere>"
+        if has_context
+        else "<zure medikuntza-ezagutzan oinarritutako ebidentzia>"
+    )
+    sections.append(
+        "Erantzun honako formatuan, testurik gehitu gabe adierazitako eremuetatik kanpo:\n\n"
+        "Erantzun laburra:\n"
+        f"{short_answer}\n\n"
+        "Ebidentzia:\n"
+        f"{evidence_placeholder}"
+    )
+    sections.append(PLACEHOLDER_NOTE_EU)
     return "\n\n".join(sections)
 
 
@@ -221,52 +297,61 @@ def build_extractive_self_feedback_prompt(
     has_context = bool(context_text)
     options = format_options(record)
     question = format_question(record).removeprefix("Pregunta: ").strip()
+    short_answer = short_answer_placeholder(record)
+    mc_format_rule = f"{MC_FORMAT_RULE_ES}\n" if options else ""
     if has_context:
         checks = (
             "Comprueba:\n"
-            "- si está basada en el contexto recuperado.\n"
+            "- si está basada en el contexto extraído (y en tu conocimiento médico, si lo has usado).\n"
             "- si hay alucinaciones.\n"
             "- si falta información."
         )
-        grounding_rule = "- Usa SOLO información del contexto recuperado."
+        rules = (
+            "Reescribe una respuesta mejorada. Reglas:\n"
+            "- Basa tu respuesta en la información del contexto extraído. Puedes copiar frases exactas cuando el "
+            "contexto extraído esté directamente relacionado con la pregunta. Si el contexto extraído es "
+            "insuficiente para una respuesta completa, puedes combinar tu conocimiento médico con el "
+            "contexto extraído.\n"
+            "- NO inventes datos que no estén respaldados por el contexto extraído o por tu conocimiento "
+            "médico.\n"
+            f"{mc_format_rule}"
+            "- Responde en español."
+        )
+        evidence_placeholder = (
+            "<evidencia basada en el contexto extraído y, si también lo has usado, en tu conocimiento médico>"
+        )
     else:
         checks = (
             "Comprueba:\n"
-            "- si responde a la pregunta.\n"
+            "- si está basada en tu conocimiento médico.\n"
             "- si hay alucinaciones.\n"
             "- si falta información relevante."
         )
-        grounding_rule = "- Usa la pregunta, las opciones de respuesta (si existen), y conocimiento clínico general."
-    answer_placeholder = "texto extraído" if has_context else "respuesta breve"
-    evidence_placeholder = "texto extraído" if has_context else "justificación"
-    sections = [
-        "Revisa la siguiente respuesta.",
-        checks,
-        "Reescribe la respuesta mejorada.",
-        "Reglas obligatorias:\n"
-        "- Responde SOLO con los dos campos indicados: \"Respuesta corta\" y \"Evidencia\".\n"
-        "- NO repitas las instrucciones.\n"
-        "- Responde en español.\n"
-        f"{grounding_rule}",
-        (
-            "Responde SIEMPRE en este formato:\n\n"
-            "Respuesta corta:\n"
-            f"({answer_placeholder})\n\n"
-            "Evidencia:\n"
-            f"({evidence_placeholder})"
-        ),
-    ]
+        rules = (
+            "Reescribe una respuesta mejorada. Reglas:\n"
+            "- Usa la información de la pregunta (y las opciones de respuesta, si las hay).\n"
+            "- Apóyate en tu conocimiento médico.\n"
+            "- NO inventes datos que no puedas justificar con tu conocimiento médico.\n"
+            f"{mc_format_rule}"
+            "- Responde en español."
+        )
+        evidence_placeholder = "<evidencia basada en tu conocimiento médico>"
+    sections = ["Revisa la siguiente respuesta.", checks, rules]
     if has_context:
-        sections.append("Contexto recuperado:\n" + context_text)
+        sections.append("Contexto extraído:\n" + context_text)
     sections.append("Pregunta:\n" + question)
     if options:
         sections.append("Opciones:\n" + options)
-    sections.extend(
-        [
-            "Respuesta original:\n" + answer,
-            "Escribe ahora únicamente la respuesta final con los dos campos indicados.",
-        ]
+    sections.append("Respuesta inicial:\n" + answer)
+    sections.append(
+        "Escribe únicamente la respuesta mejorada. Responde en este formato, sin incluir texto fuera "
+        "de los campos indicados:\n\n"
+        "Respuesta corta:\n"
+        f"{short_answer}\n\n"
+        "Evidencia:\n"
+        f"{evidence_placeholder}"
     )
+    sections.append(PLACEHOLDER_NOTE_ES)
     return "\n\n".join(sections)
 
 
@@ -280,52 +365,63 @@ def build_extractive_self_feedback_prompt_eu(
     has_context = bool(context_text)
     options = format_options(record)
     question = format_question(record, language="eu").removeprefix("Galdera: ").strip()
+    short_answer = short_answer_placeholder(record, language="eu")
+    mc_format_rule = f"{MC_FORMAT_RULE_EU}\n" if options else ""
     if has_context:
         checks = (
             "Egiaztatu:\n"
-            "- errekuperatutako testuinguruan oinarritua dagoen.\n"
+            "- erauzitako testuinguruan oinarritua dagoen (eta zure medikuntza-ezagutzan, erabili "
+            "baduzu).\n"
             "- aluzinazioak dauden.\n"
             "- informazioa falta den."
         )
-        grounding_rule = "- Erabili SOILIK errekuperatutako testuingurutik datorren informazioa."
+        rules = (
+            "Berridatzi erantzun hobetu bat. Arauak:\n"
+            "- Oinarritu erantzuna erauzitako testuinguruko informazioan. Kopiatu ditzakezu esaldi osoak "
+            "erauzitako testuingurua galderarekin zuzenki erlazionatuta dagoenean. Erauzitako "
+            "testuingurua erantzun oso baterako nahikoa ez bada, zure medikuntza-ezagutza erauzitako "
+            "testuinguruarekin konbina dezakezu.\n"
+            "- EZ asmatu erauzitako testuinguruak edo zure medikuntza-ezagutzak babesten ez duen "
+            "daturik.\n"
+            f"{mc_format_rule}"
+            "- Erantzun euskaraz."
+        )
+        evidence_placeholder = (
+            "<erauzitako testuinguruan oinarritutako ebidentzia eta, erabili baduzu, zure "
+            "medikuntza-ezagutzan oinarritutakoa ere>"
+        )
     else:
         checks = (
             "Egiaztatu:\n"
-            "- galderari erantzuten dion.\n"
+            "- zure medikuntza-ezagutzan oinarrituta dagoen.\n"
             "- aluzinazioak dauden.\n"
             "- informazio garrantzitsua falta den."
         )
-        grounding_rule = "- Erabili galdera, erantzun-aukerak (egonez gero), eta medikuntzako ezagutza orokorra."
-    answer_placeholder = "erauztitako testua" if has_context else "erantzun laburra"
-    evidence_placeholder = "erauztitako testua" if has_context else "ebidentzia edo justifikazioa"
-    sections = [
-        "Ondorengo erantzuna berrikusi.",
-        checks,
-        "Erantzun hobetua berridatzi.",
-        "Arau derrigorrezkoak:\n"
-        "- Erantzun SOILIK bi eremu hauekin: \"Erantzun laburra\" eta \"Ebidentzia\".\n"
-        "- EZ errepikatu argibideak.\n"
-        "- Erantzun euskaraz.\n"
-        f"{grounding_rule}",
-        (
-            "Erantzun BETI honako formatuan:\n\n"
-            "Erantzun laburra:\n"
-            f"({answer_placeholder})\n\n"
-            "Ebidentzia:\n"
-            f"({evidence_placeholder})"
-        ),
-    ]
+        rules = (
+            "Berridatzi erantzun hobetu bat. Arauak:\n"
+            "- Erabili galderaren informazioa (eta erantzun-aukerak, egonez gero).\n"
+            "- Baliatu zure medikuntza-ezagutzaz.\n"
+            "- EZ asmatu zure medikuntza-ezagutzarekin justifikatu ezin duzun daturik.\n"
+            f"{mc_format_rule}"
+            "- Erantzun euskaraz."
+        )
+        evidence_placeholder = "<zure medikuntza-ezagutzan oinarritutako ebidentzia>"
+    sections = ["Ondorengo erantzuna berrikusi.", checks, rules]
     if has_context:
-        sections.append("Errekuperatutako testuingurua:\n" + context_text)
+        sections.append("Erauzitako testuingurua:\n" + context_text)
     sections.append("Galdera:\n" + question)
     if options:
         sections.append("Aukerak:\n" + options)
-    sections.extend(
-        [
-            "Jatorrizko erantzuna:\n" + answer,
-            "Idatzi orain azken erantzuna soilik, adierazitako bi eremuekin.",
-        ]
+    sections.append("Hasierako erantzuna:\n" + answer)
+    sections.append(
+        "Idatzi soilik erantzun hobetua. Erantzun honako formatuan, testurik gehitu gabe "
+        "adierazitako eremuetatik kanpo:\n\n"
+        "Erantzun laburra:\n"
+        f"{short_answer}\n\n"
+        "Ebidentzia:\n"
+        f"{evidence_placeholder}"
     )
+    sections.append(PLACEHOLDER_NOTE_EU)
     return "\n\n".join(sections)
 
 
@@ -335,15 +431,18 @@ def parse_answer_sections(text: str) -> dict[str, str]:
         "evidence": r"(?:evidencia|consideraciones|ebidentzia)",
     }
     stop_labels = (
+        r"contexto extraído",
         r"contexto recuperado",
         r"contexto",
         r"pregunta",
         r"opciones",
+        r"respuesta inicial",
         r"respuesta original",
         r"respuesta mejorada",
-        r"errekuperatutako testuingurua",
+        r"erauzitako testuingurua",
         r"galdera",
         r"aukerak",
+        r"hasierako erantzuna",
         r"jatorrizko erantzuna",
         r"erantzun hobetua",
     )

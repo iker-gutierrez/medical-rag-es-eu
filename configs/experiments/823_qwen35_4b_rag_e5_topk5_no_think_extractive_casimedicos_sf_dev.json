@@ -11,7 +11,7 @@
   "trust_remote_code": true,
   "max_new_tokens": 2048,
   "feedback_max_new_tokens": 2048,
-  "retrieval_index": "models/retrieval/casimedicos_train_multilingual_e5_large",
+  "retrieval_index": "models/retrieval/casimedicos_full_multilingual_e5_large",
   "retrieval_top_k": 5,
   "top_p": 0.95,
   "top_k": 20,

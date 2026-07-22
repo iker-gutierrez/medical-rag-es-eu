@@ -35,38 +35,40 @@ REPORT_PATH = ROOT / "reports" / "metrics" / "es_dev_ablation_results.md"
 SEEDS = [42, 43, 44]
 
 EXPERIMENTS = [
-    # (display_label, mistral_run_id_prefix, mistral_base, qwen_run_id_prefix, qwen_base,
-    #  qwen_think_run_id_prefix, qwen_think_base)
-    ("Baseline LLM only",              "1260", "mistral7b_no_rag_no_think_extractive_mixed_dev",              "1128", "qwen35_9b_no_rag_no_think_extractive_mixed_dev",
+    # (display_label, qwen_run_id_prefix, qwen_base, qwen_think_run_id_prefix, qwen_think_base)
+    # Mistral-7B-Instruct-v0.3 (formerly columns 2-3 here, ids 1260-1270) has been
+    # removed from the ES roster: superseded by Ministral-3-8B-Instruct-2512 /
+    # Ministral-3-8B-Reasoning-2512, whose own staged rerun is not yet reflected in
+    # this table. Add their columns here once that rerun completes.
+    ("Baseline LLM only",              "1128", "qwen35_9b_no_rag_no_think_extractive_mixed_dev",
      "1270", "qwen35_9b_no_rag_think_extractive_mixed_dev"),
-    ("retrieve top 1",                 "1261", "mistral7b_rag_e5_topk1_no_think_extractive_mixed_dev",        "1129", "qwen35_9b_rag_e5_topk1_no_think_extractive_mixed_dev",
+    ("retrieve top 1",                 "1129", "qwen35_9b_rag_e5_topk1_no_think_extractive_mixed_dev",
      "1271", "qwen35_9b_rag_e5_topk1_think_extractive_mixed_dev"),
-    ("retrieve top 3",                 "1262", "mistral7b_rag_e5_topk3_no_think_extractive_mixed_dev",        "1130", "qwen35_9b_rag_e5_topk3_no_think_extractive_mixed_dev",
+    ("retrieve top 3",                 "1130", "qwen35_9b_rag_e5_topk3_no_think_extractive_mixed_dev",
      "1272", "qwen35_9b_rag_e5_topk3_think_extractive_mixed_dev"),
-    ("retrieve top 5",                 "1263", "mistral7b_rag_e5_topk5_no_think_extractive_mixed_dev",        "1131", "qwen35_9b_rag_e5_topk5_no_think_extractive_mixed_dev",
+    ("retrieve top 5",                 "1131", "qwen35_9b_rag_e5_topk5_no_think_extractive_mixed_dev",
      "1273", "qwen35_9b_rag_e5_topk5_think_extractive_mixed_dev"),
-    ("rerank top 1",                   "1264", "mistral7b_rag_e5_rerank1_no_think_extractive_mixed_dev",      "1132", "qwen35_9b_rag_e5_rerank1_no_think_extractive_mixed_dev",
+    ("rerank top 1",                   "1132", "qwen35_9b_rag_e5_rerank1_no_think_extractive_mixed_dev",
      "1274", "qwen35_9b_rag_e5_rerank1_think_extractive_mixed_dev"),
-    ("rerank top 3",                   "1265", "mistral7b_rag_e5_rerank3_no_think_extractive_mixed_dev",      "1133", "qwen35_9b_rag_e5_rerank3_no_think_extractive_mixed_dev",
+    ("rerank top 3",                   "1133", "qwen35_9b_rag_e5_rerank3_no_think_extractive_mixed_dev",
      "1275", "qwen35_9b_rag_e5_rerank3_think_extractive_mixed_dev"),
-    ("rerank top 5",                   "1266", "mistral7b_rag_e5_rerank5_no_think_extractive_mixed_dev",      "1134", "qwen35_9b_rag_e5_rerank5_no_think_extractive_mixed_dev",
+    ("rerank top 5",                   "1134", "qwen35_9b_rag_e5_rerank5_no_think_extractive_mixed_dev",
      "1276", "qwen35_9b_rag_e5_rerank5_think_extractive_mixed_dev"),
-    ("3-shot, no RAG",                 "1267", "mistral7b_3shot_no_rag_no_think_extractive_mixed_dev",        "1135", "qwen35_9b_3shot_no_rag_no_think_extractive_mixed_dev",
+    ("3-shot, no RAG",                 "1135", "qwen35_9b_3shot_no_rag_no_think_extractive_mixed_dev",
      "1277", "qwen35_9b_3shot_no_rag_think_extractive_mixed_dev"),
-    ("3-shot + rerank top 5",          "1270", "mistral7b_rag_3shot_e5_rerank5_no_think_extractive_mixed_dev","1138", "qwen35_9b_rag_3shot_e5_rerank5_no_think_extractive_mixed_dev",
+    ("3-shot + rerank top 5",          "1138", "qwen35_9b_rag_3shot_e5_rerank5_no_think_extractive_mixed_dev",
      "1280", "qwen35_9b_rag_3shot_e5_rerank5_think_extractive_mixed_dev"),
-    ("cross-domain: SNS index",        "1268", "mistral7b_rag_sns1064_e5_rerank5_no_think_extractive_mixed_dev","1136","qwen35_9b_rag_sns1064_e5_rerank5_no_think_extractive_mixed_dev",
+    ("cross-domain: SNS index",        "1136","qwen35_9b_rag_sns1064_e5_rerank5_no_think_extractive_mixed_dev",
      "1278", "qwen35_9b_rag_sns1064_e5_rerank5_think_extractive_mixed_dev"),
-    ("cross-domain: CasiMedicos index","1269", "mistral7b_rag_casimedicos_e5_rerank5_no_think_extractive_mixed_dev","1137","qwen35_9b_rag_casimedicos_e5_rerank5_no_think_extractive_mixed_dev",
+    ("cross-domain: CasiMedicos index","1137","qwen35_9b_rag_casimedicos_e5_rerank5_no_think_extractive_mixed_dev",
      "1279", "qwen35_9b_rag_casimedicos_e5_rerank5_think_extractive_mixed_dev"),
 ]
 
-# The three ES models and which EXPERIMENTS tuple columns give their (id, base).
-#   tuple = (label, mistral_id, mistral_base, qwen_id, qwen_base, qwenthink_id, qwenthink_base)
+# The two ES models and which EXPERIMENTS tuple columns give their (id, base).
+#   tuple = (label, qwen_id, qwen_base, qwenthink_id, qwenthink_base)
 ES_MODELS = [
-    ("Mistral-7B-Instruct",   1, 2),
-    ("Qwen3.5-9B (no-think)", 3, 4),
-    ("Qwen3.5-9B (think)",    5, 6),
+    ("Qwen3.5-9B (no-think)", 1, 2),
+    ("Qwen3.5-9B (think)",    3, 4),
 ]
 # Retrieval sweep rows the base RAG config for row 8 / domain rows is chosen from
 # (indices into EXPERIMENTS): 1 retrieve top1, 2 retrieve top3, 3 retrieve top5, 4 rerank1, 5 rerank3,
